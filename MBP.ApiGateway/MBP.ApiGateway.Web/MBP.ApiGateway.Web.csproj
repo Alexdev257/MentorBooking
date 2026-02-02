@@ -10,4 +10,8 @@
     <ProjectReference Include="..\MBP.ApiGateway.ServiceDefaults\MBP.ApiGateway.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
+  </ItemGroup>
+
 </Project>

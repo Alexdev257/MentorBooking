@@ -1,15 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using SharedInfrastructure.Services;
-using SharedKernel.Domain;
+using Shared.Infrastructure.Services;
+using Shared.Kernel.Domain;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedInfrastructure.Persistence.Interceptors
+namespace Shared.Infrastructure.Persistence.Interceptors
 {
     public class AuditableEntityInterceptor : SaveChangesInterceptor
     {

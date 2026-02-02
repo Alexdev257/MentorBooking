@@ -1,6 +1,6 @@
 ﻿using AuthService.Application.DTOs.Response.Auth;
 using MediatR;
-using SharedContracts.Interfaces;
+using Shared.Contracts.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,7 +18,7 @@ namespace AuthService.Application.CQRS.Command.Auth
             var response = new VerifyRegisterResponse();
             if (string.IsNullOrWhiteSpace(Email))
             {
-                response.ListErrors.Add(new SharedContracts.Common.Wrappers.Errors
+                response.ListErrors.Add(new Shared.Contracts.Common.Wrappers.Errors
                 {
                     Field = "Email",
                     Detail = "Email is not empty",
@@ -26,7 +26,7 @@ namespace AuthService.Application.CQRS.Command.Auth
             }
             if (string.IsNullOrWhiteSpace(Otp))
             {
-                response.ListErrors.Add(new SharedContracts.Common.Wrappers.Errors
+                response.ListErrors.Add(new Shared.Contracts.Common.Wrappers.Errors
                 {
                     Field = "OTP",
                     Detail = "OTP is not null or empty"
@@ -34,7 +34,7 @@ namespace AuthService.Application.CQRS.Command.Auth
             }
             if(!int.TryParse(Otp, out var _))
             {
-                response.ListErrors.Add(new SharedContracts.Common.Wrappers.Errors
+                response.ListErrors.Add(new Shared.Contracts.Common.Wrappers.Errors
                 {
                     Field = "OTP",
                     Detail = "OTP must be digit"
@@ -42,7 +42,7 @@ namespace AuthService.Application.CQRS.Command.Auth
             }
             if(Otp.Length != 6)
             {
-                response.ListErrors.Add(new SharedContracts.Common.Wrappers.Errors
+                response.ListErrors.Add(new Shared.Contracts.Common.Wrappers.Errors
                 {
                     Field = "OTP",
                     Detail = "OTP must be 6 digit"

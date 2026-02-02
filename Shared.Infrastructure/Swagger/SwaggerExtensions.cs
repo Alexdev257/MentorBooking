@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.OpenApi.Models;
 
-namespace SharedInfrastructure.Swagger
+namespace Shared.Infrastructure.Swagger
 {
     public static class SwaggerExtensions
     {

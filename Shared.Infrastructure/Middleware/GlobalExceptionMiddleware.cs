@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using SharedContracts.Common.Wrappers;
+using Shared.Contracts.Common.Wrappers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +9,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace SharedInfrastructure.Middleware
+namespace Shared.Infrastructure.Middleware
 {
     public class GlobalExceptionMiddleware
     {

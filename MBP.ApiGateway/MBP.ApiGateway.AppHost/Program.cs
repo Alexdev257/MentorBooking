@@ -13,4 +13,10 @@ builder.AddProject<Projects.MBP_ApiGateway_Web>("webfrontend")
     .WithReference(apiGateway)
     .WaitFor(apiGateway);
 
+builder.AddProject<Projects.BookingService_Api>("bookingservice-api");
+
+builder.AddProject<Projects.MeetingService_Api>("meetingservice-api");
+
+builder.AddProject<Projects.AIService_Api>("aiservice-api");
+
 builder.Build().Run();

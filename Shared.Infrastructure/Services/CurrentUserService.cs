@@ -6,7 +6,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedInfrastructure.Services
+namespace Shared.Infrastructure.Services
 {
     public interface ICurrentUserService
     {

@@ -9,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using SharedInfrastructure.Bus;
-using SharedInfrastructure.Persistence.Repositories;
-using SharedKernel.Interfaces;
+using Shared.Infrastructure.Bus;
+using Shared.Infrastructure.Persistence.Repositories;
+using Shared.Kernel.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -40,13 +40,14 @@ namespace AuthService.Infrastructure.DependencyInjection
 
         private static void AddDatabase(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<ApplicationDbContext>(options =>
+            services.AddDbContext<AuthService.Infrastructure.Persistence.ApplicationDbContext>(options =>
             {
-                options.UseMySql(configuration.GetConnectionString("DefaultConnection"),
-                    ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection")));
+                //options.UseMySql(configuration.GetConnectionString("DefaultConnection"),
+                //    ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection")));
+                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
             });
 
-            services.AddScoped<DbContext>(provider => provider.GetService<ApplicationDbContext>()!);
+            services.AddScoped<DbContext>(provider => provider.GetService<AuthService.Infrastructure.Persistence.ApplicationDbContext>()!);
         }
 
         private static void AddScopedInterface(this IServiceCollection service)

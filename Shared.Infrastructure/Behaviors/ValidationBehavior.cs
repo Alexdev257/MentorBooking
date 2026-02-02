@@ -1,14 +1,14 @@
 ﻿using MediatR;
 using Microsoft.Extensions.Logging;
-using SharedContracts.Common.Wrappers;
-using SharedContracts.Interfaces;
+using Shared.Contracts.Common.Wrappers;
+using Shared.Contracts.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedInfrastructure.Behaviors
+namespace Shared.Infrastructure.Behaviors
 {
     public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TResponse : CommonResponseBase
