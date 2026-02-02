@@ -1,12 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using SharedContracts.Common.Wrappers;
+using Shared.Contracts.Common.Wrappers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedInfrastructure.Extensions
+namespace Shared.Infrastructure.Extensions
 {
     public static class QueryableExtensions
     {

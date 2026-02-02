@@ -38,9 +38,9 @@ namespace AuthService.Infrastructure.Implements.Helpers
                 new Claim(JwtRegisteredClaimNames.Jti,
                     Math.Abs(BitConverter.ToInt64(Guid.NewGuid().ToByteArray())).ToString()),
                 new Claim("UserId", user.Id.ToString()),
-                new Claim("FullName", user.FullName),
-                new Claim("Email", user.Email),
-                new Claim("RoleId", user.RoleId.ToString())
+                //new Claim("FullName", user.FullName),
+                //new Claim("Email", user.Email),
+                //new Claim("RoleId", user.RoleId.ToString())
                 //new Claim("Role", user.Role.RoleName.ToString().ToLower()),
             }),
 

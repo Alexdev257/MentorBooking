@@ -1,6 +1,6 @@
 ﻿using AuthService.Application.DTOs.Response.Auth;
 using MediatR;
-using SharedContracts.Interfaces;
+using Shared.Contracts.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,13 +19,13 @@ namespace AuthService.Application.CQRS.Command.Auth
         {
             var response = new LoginResponse();
             if (string.IsNullOrEmpty(Email))
-                response.ListErrors.Add(new Errors
+                response.ListErrors.Add(new Shared.Contracts.Common.Wrappers.Errors
                 {
                     Field = "Email",
                     Detail = "Email is null or empty"
                 });
             if (string.IsNullOrEmpty(Password))
-                response.ListErrors.Add(new Errors
+                response.ListErrors.Add(new Shared.Contracts.Common.Wrappers.Errors
                 {
                     Field = "Password",
                     Detail = "Password is null or empty"

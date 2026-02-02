@@ -2,8 +2,8 @@
 using AuthService.Infrastructure.DependencyInjection;
 using AuthService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using SharedInfrastructure;
-using SharedInfrastructure.Swagger;
+using Shared.Infrastructure;
+using Shared.Infrastructure.Swagger;
 
 namespace AuthService.Api;
 

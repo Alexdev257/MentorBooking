@@ -2,6 +2,7 @@
 using EmailService.Infrastructure.Consumers;
 using EmailService.Infrastructure.Services;
 using MassTransit;
+using Shared.Infrastructure.Bus;
 
 namespace EmailService.Api;
 
@@ -13,20 +14,7 @@ public class Program
         builder.AddServiceDefaults();
         builder.Services.AddScoped<EmailSender>();
 
-        builder.Services.AddMassTransit(x =>
-        {
-            x.AddConsumer<SendOtpRegisterConsumer>();
-
-            x.UsingRabbitMq((context, cfg) =>
-            {
-                cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h => {
-                    h.Username(builder.Configuration["RabbitMQ:Username"]!);
-                    h.Password(builder.Configuration["RabbitMQ:Password"]!);
-                });
-
-                cfg.ConfigureEndpoints(context);
-            });
-        });
+        builder.Services.AddMessageBus(builder.Configuration, typeof(SendOtpRegisterConsumer).Assembly);
 
         var app = builder.Build();
 

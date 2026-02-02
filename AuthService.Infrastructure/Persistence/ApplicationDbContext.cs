@@ -1,6 +1,6 @@
 ﻿using AuthService.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using SharedInfrastructure.Persistence.Interceptors;
+using Shared.Infrastructure.Persistence.Interceptors;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,7 +23,8 @@ namespace AuthService.Infrastructure.Persistence
         }
 
         public virtual DbSet<User> Users { get; set; }
-        public virtual DbSet<Role> Roles { get; set; }
+        public virtual DbSet<MentorProfile> MentorProfiles { get; set; }
+        public virtual DbSet<Review> Reviews { get; set; }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.AddInterceptors(_auditableEntityInterceptor);

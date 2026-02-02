@@ -2,8 +2,8 @@
 using AuthService.Domain.Entities;
 using AuthService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore.Storage;
-using SharedInfrastructure.Persistence.Repositories;
-using SharedKernel.Interfaces;
+using Shared.Infrastructure.Persistence.Repositories;
+using Shared.Kernel.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,8 +22,8 @@ namespace AuthService.Infrastructure.Implements.Repositories
         }
 
         public IGenericRepository<User> Users => new GenericRepository<User>(_context);
-
-        public IGenericRepository<Role> Roles => new GenericRepository<Role>(_context);
+        public IGenericRepository<MentorProfile> MentorProfiles => new GenericRepository<MentorProfile>(_context);
+        public IGenericRepository<Review> Reviews => new GenericRepository<Review>(_context);
 
         public async Task BeginTransactionAsync()
         {

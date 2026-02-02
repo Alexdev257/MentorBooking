@@ -1,13 +1,13 @@
 ﻿using MassTransit;
-using SharedContracts.Events;
-using SharedContracts.Interfaces;
+using Shared.Contracts.Events;
+using Shared.Contracts.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedInfrastructure.Bus
+namespace Shared.Infrastructure.Bus
 {
     public class MassTransitProducer : IMessageProducer
     {
