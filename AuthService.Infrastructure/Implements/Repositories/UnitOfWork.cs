@@ -22,8 +22,8 @@ namespace AuthService.Infrastructure.Implements.Repositories
         }
 
         public IGenericRepository<User> Users => new GenericRepository<User>(_context);
-        public IGenericRepository<MentorProfile> MentorProfiles => new GenericRepository<MentorProfile>(_context);
-        public IGenericRepository<Review> Reviews => new GenericRepository<Review>(_context);
+        public IGenericRepository<Teacher> Teachers => new GenericRepository<Teacher>(_context);
+        public IGenericRepository<Student> Students => new GenericRepository<Student>(_context);
 
         public async Task BeginTransactionAsync()
         {

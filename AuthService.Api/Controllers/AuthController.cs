@@ -1,4 +1,4 @@
-﻿using AuthService.Application.CQRS.Command.Auth;
+using AuthService.Application.CQRS.Command.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -31,7 +31,7 @@ namespace AuthService.Api.Controllers
         }
 
         [HttpPost("verify-register")]
-        public async Task<IActionResult> VerifyRegisterAsync([FromBody] RegisterCommand request)
+        public async Task<IActionResult> VerifyRegisterAsync([FromBody] VerifyRegisterCommand request)
         {
             var result = await _mediator.Send(request);
             if (result.IsSuccess) return StatusCode(StatusCodes.Status201Created, result);

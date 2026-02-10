@@ -1,15 +1,17 @@
-﻿using AuthService.Application.Interfaces.Helpers;
+using AuthService.Application.Common;
+using AuthService.Application.Interfaces.Helpers;
 using AuthService.Application.Interfaces.Repositories;
+using AuthService.Application.Interfaces.Services;
+using AuthService.Application.Services;
 using AuthService.Infrastructure.Implements.Helpers;
 using AuthService.Infrastructure.Implements.Repositories;
-using AuthService.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Shared.Infrastructure.Bus;
+using Shared.Infrastructure.Persistence.Interceptors;
 using Shared.Infrastructure.Persistence.Repositories;
 using Shared.Kernel.Interfaces;
 using System;
@@ -30,6 +32,7 @@ namespace AuthService.Infrastructure.DependencyInjection
             services.AddDatabase(configuration);
             services.AddScopedInterface();
             services.AddMediatRInfrastructure(configuration);
+            services.AddAutoMapper(typeof(AuthServiceMappingProfile));
             services.AddCorsExtentions();
             services.AddJwtAuthentication(configuration);
             services.AddAuthorizationRole();
@@ -38,24 +41,31 @@ namespace AuthService.Infrastructure.DependencyInjection
             return services;
         }
 
-        private static void AddDatabase(this IServiceCollection services, IConfiguration configuration)
-        {
-            services.AddDbContext<AuthService.Infrastructure.Persistence.ApplicationDbContext>(options =>
-            {
-                //options.UseMySql(configuration.GetConnectionString("DefaultConnection"),
-                //    ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection")));
-                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
-            });
+       private static void AddDatabase(this IServiceCollection services, IConfiguration configuration)
+{
+    var connectionString =
+        configuration.GetConnectionString("auth-db") ??
+        configuration.GetConnectionString("DefaultConnection");
 
-            services.AddScoped<DbContext>(provider => provider.GetService<AuthService.Infrastructure.Persistence.ApplicationDbContext>()!);
-        }
+    if (string.IsNullOrWhiteSpace(connectionString))
+        throw new InvalidOperationException(
+            "Missing connection string. Expected 'auth-db' (Aspire) or 'DefaultConnection' (local).");
+
+    services.AddDbContext<AuthService.Infrastructure.Persistence.ApplicationDbContext>((serviceProvider, options) =>
+    {
+        options.UseNpgsql(connectionString);
+        options.AddInterceptors(serviceProvider.GetRequiredService<AuditableEntityInterceptor>());
+    });
+
+}
+
 
         private static void AddScopedInterface(this IServiceCollection service)
         {
             service.AddScoped<IAuthUnitOfWork, UnitOfWork>();
             service.AddScoped<IJwtHelper, JwtHelper>();
             service.AddScoped<IBcryptHelper, BcryptHelper>();
-
+            service.AddScoped<IAdminAuthService, AdminAuthService>();
         }
 
         private static void AddMediatRInfrastructure(this IServiceCollection service, IConfiguration config)
