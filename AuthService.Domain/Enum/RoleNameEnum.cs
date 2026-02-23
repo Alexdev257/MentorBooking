@@ -9,8 +9,7 @@ namespace AuthService.Domain.Enum
     public enum RoleNameEnum
     {
         Admin = 1,
-        User = 2,
-        Manager = 3,
-        Guest = 4
+        Teacher = 2,
+        Student = 3,
     }
 }

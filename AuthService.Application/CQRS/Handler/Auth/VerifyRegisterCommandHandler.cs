@@ -53,7 +53,7 @@ namespace AuthService.Application.CQRS.Handler.Auth
                     Message = "Register successfully",
                     Data = new VerifyOtpDTO
                     {
-                        Email = "user.Email,",
+                        Email = user.Email,
                         Otp = otp,
                     }
                 };

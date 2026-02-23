@@ -15,10 +15,7 @@ namespace AuthService.Domain.Entities
         public string Fullname { get; set; }
         public int Role { get; set; }
         public string AvatarUrl { get; set; }
-        public string Timezone { get; set; }
-        public virtual MentorProfile? MentorProfile { get; set; }
-        public virtual ICollection<Review> ReviewsReceived { get; set; } = new List<Review>();
-        public virtual ICollection<Review> ReviewsGiven { get; set; } = new List<Review>();
+        public virtual Teacher? Teacher { get; set; }
 
     }
 

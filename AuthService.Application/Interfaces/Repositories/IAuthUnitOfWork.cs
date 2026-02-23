@@ -11,7 +11,7 @@ namespace AuthService.Application.Interfaces.Repositories
     public interface IAuthUnitOfWork : IUnitOfWork
     {
         IGenericRepository<User> Users { get; }
-        IGenericRepository<MentorProfile> MentorProfiles { get; }
-        IGenericRepository<Review> Reviews { get; }
+        IGenericRepository<Teacher> Teachers { get; }
+        IGenericRepository<Student> Students { get; }
     }
 }
