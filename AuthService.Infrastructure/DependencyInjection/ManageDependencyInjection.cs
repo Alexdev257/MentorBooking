@@ -66,6 +66,7 @@ namespace AuthService.Infrastructure.DependencyInjection
             service.AddScoped<IJwtHelper, JwtHelper>();
             service.AddScoped<IBcryptHelper, BcryptHelper>();
             service.AddScoped<IAdminAuthService, AdminAuthService>();
+            service.AddScoped<IAuthService, AuthService.Application.Services.AuthService>();
         }
 
         private static void AddMediatRInfrastructure(this IServiceCollection service, IConfiguration config)
@@ -117,7 +118,7 @@ namespace AuthService.Infrastructure.DependencyInjection
                         OnAuthenticationFailed = context =>
                         {
                             if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-                                context.Response.Headers.Add("Token-Expired", "true");
+                                context.Response.Headers["Token-Expired"] = "true";
                             return Task.CompletedTask;
                         }
                     };
