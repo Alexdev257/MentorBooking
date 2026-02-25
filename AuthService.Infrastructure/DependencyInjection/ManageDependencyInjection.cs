@@ -37,7 +37,7 @@ namespace AuthService.Infrastructure.DependencyInjection
             services.AddJwtAuthentication(configuration);
             services.AddAuthorizationRole();
 
-            services.AddMessageBus(configuration);
+            AddMessageBusWhenConfigured(services, configuration);
             return services;
         }
 
@@ -60,11 +60,26 @@ namespace AuthService.Infrastructure.DependencyInjection
 }
 
 
+        private static void AddMessageBusWhenConfigured(IServiceCollection services, IConfiguration configuration)
+        {
+            var rabbitEnabled = configuration.GetValue<bool>("RabbitMQ:Enabled", true);
+            var rabbitHost = configuration["RabbitMQ:Host"];
+            if (rabbitEnabled && !string.IsNullOrWhiteSpace(rabbitHost))
+            {
+                services.AddMessageBus(configuration);
+            }
+            else
+            {
+                services.AddScoped<Shared.Contracts.Interfaces.IMessageProducer, Shared.Infrastructure.Bus.NoOpMessageProducer>();
+            }
+        }
+
         private static void AddScopedInterface(this IServiceCollection service)
         {
             service.AddScoped<IAuthUnitOfWork, UnitOfWork>();
             service.AddScoped<IJwtHelper, JwtHelper>();
             service.AddScoped<IBcryptHelper, BcryptHelper>();
+            service.AddScoped<IQueryablePager, QueryablePager>();
             service.AddScoped<IAdminAuthService, AdminAuthService>();
             service.AddScoped<IAuthService, AuthService.Application.Services.AuthService>();
         }

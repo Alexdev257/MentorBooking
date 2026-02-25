@@ -1,7 +1,7 @@
-
 using AuthService.Infrastructure.DependencyInjection;
 using AuthService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using Shared.Infrastructure;
 using Shared.Infrastructure.Swagger;
 
@@ -9,14 +9,35 @@ namespace AuthService.Api;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.AddServiceDefaults();
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
-        //builder.Services.AddSharedSwagger();
+        builder.Services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new OpenApiInfo { Title = "AuthService API", Version = "v1" });
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Name = "Authorization",
+                Type = SecuritySchemeType.Http,
+                Scheme = "Bearer",
+                BearerFormat = "JWT",
+                In = ParameterLocation.Header,
+                Description = "Nhập JWT (lấy từ POST /api/auth/login). Ví dụ: Bearer {token}"
+            });
+            options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecurityScheme
+                    {
+                        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                    },
+                    Array.Empty<string>()
+                }
+            });
+        });
 
         builder.Services.AddSharedInfrastructure(builder.Configuration);
         builder.Services.AddAuthServiceInfrastructure(builder.Configuration);
@@ -46,6 +67,8 @@ public class Program
             }
         }
 
+        await AuthService.Infrastructure.Persistence.DefaultAdminSeeder.SeedAsync(app.Services);
+
         app.UseSharedInfrastructure();
         app.MapDefaultEndpoints();
 
@@ -66,6 +89,6 @@ public class Program
 
         app.MapControllers();
 
-        app.Run();
+        await app.RunAsync();
     }
 }

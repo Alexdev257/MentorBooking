@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Shared.Contracts.Common.Wrappers;
+using SharedContracts.Common.Wrappers.Requests;
 using System.Security.Claims;
 
 namespace AuthService.Api.Controllers;
@@ -36,7 +37,6 @@ public class AdminController : ControllerBase
         return roleClaim != null && roleClaim == ((int)RoleNameEnum.Admin).ToString();
     }
 
-    /// <summary>Returns 403/401 if not admin; null when ok.</summary>
     private IActionResult? EnsureAdmin(Guid? adminId)
     {
         if (!IsAdmin())
@@ -55,7 +55,6 @@ public class AdminController : ControllerBase
                 response.ListErrors.Add(new Errors { Field = key, Detail = err.ErrorMessage });
     }
 
-    /// <summary>Register a new teacher (Admin only).</summary>
     [HttpPost("register-teacher")]
     [ProducesResponseType(typeof(CommonResponse<TeacherResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(CommonResponse<TeacherResponseDto>), StatusCodes.Status400BadRequest)]
@@ -81,7 +80,6 @@ public class AdminController : ControllerBase
         return result.IsSuccess ? StatusCode(StatusCodes.Status201Created, result) : BadRequest(result);
     }
 
-    /// <summary>Register a new student (Admin only).</summary>
     [HttpPost("register-student")]
     [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status400BadRequest)]
@@ -105,5 +103,98 @@ public class AdminController : ControllerBase
 
         var result = await _adminAuthService.RegisterStudentAsync(request, adminId!.Value);
         return result.IsSuccess ? StatusCode(StatusCodes.Status201Created, result) : BadRequest(result);
+    }
+
+    /// <summary>Get all students with paging (Admin only).</summary>
+    [HttpGet("students")]
+    [ProducesResponseType(typeof(CommonResponse<PaginationResponse<StudentResponseDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAllStudentsAsync([FromQuery] PaginationRequest? request)
+    {
+        request ??= new PaginationRequest();
+        var adminId = GetAdminIdFromClaim();
+        if (EnsureAdmin(adminId) is { } err)
+            return err;
+        var result = await _adminAuthService.GetAllStudentsAsync(request);
+        return Ok(result);
+    }
+
+    [HttpGet("students/{id:guid}")]
+    [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetStudentByIdAsync(Guid id)
+    {
+        var adminId = GetAdminIdFromClaim();
+        if (EnsureAdmin(adminId) is { } err)
+            return err;
+        var result = await _adminAuthService.GetStudentByIdAsync(id);
+        if (!result.IsSuccess)
+            return NotFound(result);
+        return Ok(result);
+    }
+
+    [HttpPut("students/{id:guid}")]
+    [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UpdateStudentAsync(Guid id, [FromBody] UpdateStudentByAdminRequest? request)
+    {
+        if (request == null)
+            return BadRequest(new CommonResponse<StudentResponseDto> { IsSuccess = false, Message = "Request body is required" });
+        if (!ModelState.IsValid)
+        {
+            var response = new CommonResponse<StudentResponseDto>();
+            FillValidationErrors(response, ModelState);
+            return BadRequest(response);
+        }
+        var adminId = GetAdminIdFromClaim();
+        if (EnsureAdmin(adminId) is { } err)
+            return err;
+        var result = await _adminAuthService.UpdateStudentAsync(id, request);
+        if (!result.IsSuccess)
+            return NotFound(result);
+        return Ok(result);
+    }
+
+    /// <summary>Update only student status (IsActive). Admin only.</summary>
+    [HttpPatch("students/{id:guid}/status")]
+    [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> UpdateStudentStatusAsync(Guid id, [FromBody] UpdateStudentStatusRequest? request)
+    {
+        if (request == null)
+            return BadRequest(new CommonResponse<StudentResponseDto> { IsSuccess = false, Message = "Request body is required" });
+        var adminId = GetAdminIdFromClaim();
+        if (EnsureAdmin(adminId) is { } err)
+            return err;
+        var result = await _adminAuthService.UpdateStudentStatusAsync(id, request);
+        if (!result.IsSuccess)
+            return NotFound(result);
+        return Ok(result);
+    }
+
+    /// <summary>Soft delete: set student status to inactive (IsActive = false). Admin only.</summary>
+    [HttpDelete("students/{id:guid}")]
+    [ProducesResponseType(typeof(CommonResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> DeleteStudentAsync(Guid id)
+    {
+        var adminId = GetAdminIdFromClaim();
+        if (EnsureAdmin(adminId) is { } err)
+            return err;
+        var result = await _adminAuthService.DeleteStudentAsync(id);
+        if (!result.IsSuccess)
+            return NotFound(result);
+        return Ok(result);
     }
 }
