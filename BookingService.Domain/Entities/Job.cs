@@ -1,4 +1,4 @@
-﻿using Shared.Kernel.Domain;
+using Shared.Kernel.Domain;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,9 +9,9 @@ namespace BookingService.Domain.Entities
 {
     public class Job : AuditableEntity
     {
-        public string Type { get; set; }
-        public string Status { get; set; }
-        public string Payload { get; set; }
+        public string Type { get; set; } = null!;
+        public string Status { get; set; } = null!;
+        public string Payload { get; set; } = null!;
         public string? Result { get; set; }
         public string? ErrorMessage { get; set; }
         public int Attempts { get; set; }
