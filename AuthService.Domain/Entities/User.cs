@@ -16,6 +16,7 @@ namespace AuthService.Domain.Entities
         public int Role { get; set; }
         public string AvatarUrl { get; set; }
         public virtual Teacher? Teacher { get; set; }
+        public virtual Student? Student { get; set; }
 
     }
 

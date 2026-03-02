@@ -1,5 +1,3 @@
-// File này chỉ là VÍ DỤ - KHÔNG CẦN thiết lập với setup hiện tại
-// Nếu muốn dùng .NET Aspire quản lý database, có thể tham khảo code này
 
 using Aspire.Hosting.PostgreSQL;
 

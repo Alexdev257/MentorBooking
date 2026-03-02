@@ -6,6 +6,7 @@ using BookingService.Application.Services;
 using BookingService.Infrastructure.Implements.Helpers;
 using BookingService.Infrastructure.Implements.Repositories;
 using BookingService.Infrastructure.Persistence;
+using BookingService.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -75,6 +76,7 @@ namespace BookingService.Infrastructure.DependencyInjection
         {
             service.AddScoped<IBookingUnitOfWork, UnitOfWork>();
             service.AddScoped<IQueryablePager, QueryablePager>();
+            service.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
             service.AddScoped<IBookingService, BookingService.Application.Services.BookingService>();
         }
 

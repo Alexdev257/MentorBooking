@@ -1,7 +1,9 @@
 using AuthService.Infrastructure.DependencyInjection;
 using AuthService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using Npgsql;
 using Shared.Infrastructure;
 using Shared.Infrastructure.Swagger;
 
@@ -67,7 +69,18 @@ public class Program
             }
         }
 
-        await AuthService.Infrastructure.Persistence.DefaultAdminSeeder.SeedAsync(app.Services);
+        try
+        {
+            await AuthService.Infrastructure.Persistence.DefaultAdminSeeder.SeedAsync(app.Services);
+        }
+        catch (PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            var logger = app.Services.GetRequiredService<ILogger<Program>>();
+            logger.LogError(
+                "Database table does not exist. If migrations were never applied or tables were dropped, run: DELETE FROM \"__EFMigrationsHistory\"; then restart the application to apply migrations. Error: {Message}",
+                ex.Message);
+            throw;
+        }
 
         app.UseSharedInfrastructure();
         app.MapDefaultEndpoints();

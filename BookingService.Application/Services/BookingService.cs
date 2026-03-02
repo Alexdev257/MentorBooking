@@ -17,12 +17,14 @@ public class BookingService : IBookingService
     private readonly IBookingUnitOfWork _unitOfWork;
     private readonly IQueryablePager _pager;
     private readonly IMapper _mapper;
+    private readonly IGoogleCalendarService _googleCalendarService;
 
-    public BookingService(IBookingUnitOfWork unitOfWork, IQueryablePager pager, IMapper mapper)
+    public BookingService(IBookingUnitOfWork unitOfWork, IQueryablePager pager, IMapper mapper, IGoogleCalendarService googleCalendarService)
     {
         _unitOfWork = unitOfWork;
         _pager = pager;
         _mapper = mapper;
+        _googleCalendarService = googleCalendarService;
     }
 
     public async Task<CommonResponse<List<SlotResponseDto>>> GetAvailableSlotsAsync(Guid mentorId, DateTime? from, DateTime? to, CancellationToken cancellationToken = default)
@@ -233,10 +235,19 @@ public class BookingService : IBookingService
             return response;
         }
         booking.Status = (int)BookingStatusEnum.Confirmed;
+
+        var (eventId, meetLink) = await _googleCalendarService.CreateEventWithMeetAsync(booking, cancellationToken);
+        if (!string.IsNullOrEmpty(eventId))
+            booking.GoogleEventId = eventId;
+        if (!string.IsNullOrEmpty(meetLink))
+            booking.MeetingLink = meetLink;
+
         _unitOfWork.Bookings.UpdateAsync(booking);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         response.IsSuccess = true;
-        response.Message = "Booking accepted. Meeting link will be sent to the student.";
+        response.Message = !string.IsNullOrEmpty(meetLink)
+            ? "Booking accepted. Meeting link has been created."
+            : "Booking accepted. Meeting link will be sent to the student.";
         response.Data = _mapper.Map<BookingResponseDto>(booking);
         return response;
     }

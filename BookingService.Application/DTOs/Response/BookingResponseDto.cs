@@ -13,5 +13,7 @@ public class BookingResponseDto
     public string Currency { get; set; } = string.Empty;
     public DateTime ScheduleStart { get; set; }
     public DateTime ScheduleEnd { get; set; }
+    public string? MeetingLink { get; set; }
+    public string? GoogleEventId { get; set; }
     public DateTime CreatedAt { get; set; }
 }

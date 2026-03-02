@@ -1,4 +1,4 @@
-﻿using BookingService.Domain.Entities;
+using BookingService.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System;
@@ -23,8 +23,7 @@ namespace BookingService.Infrastructure.Persistence.Configurations
 
             builder.Property(x => x.Status)
                 .IsRequired()
-                .HasMaxLength(20)
-                .HasDefaultValue("PENDING")
+                .HasDefaultValue((int)BookingService.Domain.Enum.BookingStatusEnum.Pending)
                 .HasColumnName("status");
 
             builder.Property(x => x.Topic).HasColumnName("topic");
@@ -44,6 +43,8 @@ namespace BookingService.Infrastructure.Persistence.Configurations
 
             builder.Property(x => x.ScheduleStart).IsRequired().HasColumnName("scheduled_start");
             builder.Property(x => x.ScheduleEnd).IsRequired().HasColumnName("scheduled_end");
+            builder.Property(x => x.MeetingLink).HasColumnName("meeting_link");
+            builder.Property(x => x.GoogleEventId).HasColumnName("google_event_id");
 
             builder.Property(u => u.CreatedAt)
                    .HasColumnName("created_at")
