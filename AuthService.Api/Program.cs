@@ -17,29 +17,30 @@ public class Program
         builder.AddServiceDefaults();
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen(options =>
-        {
-            options.SwaggerDoc("v1", new OpenApiInfo { Title = "AuthService API", Version = "v1" });
-            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-            {
-                Name = "Authorization",
-                Type = SecuritySchemeType.Http,
-                Scheme = "Bearer",
-                BearerFormat = "JWT",
-                In = ParameterLocation.Header,
-                Description = "Nhập JWT (lấy từ POST /api/auth/login). Ví dụ: Bearer {token}"
-            });
-            options.AddSecurityRequirement(new OpenApiSecurityRequirement
-            {
-                {
-                    new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-                    },
-                    Array.Empty<string>()
-                }
-            });
-        });
+        builder.Services.AddSwaggerGen();
+        //builder.Services.AddSwaggerGen(options =>
+        //{
+        //    options.SwaggerDoc("v1", new OpenApiInfo { Title = "AuthService API", Version = "v1" });
+        //    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        //    {
+        //        Name = "Authorization",
+        //        Type = SecuritySchemeType.Http,
+        //        Scheme = "Bearer",
+        //        BearerFormat = "JWT",
+        //        In = ParameterLocation.Header,
+        //        Description = "Nhập JWT (lấy từ POST /api/auth/login). Ví dụ: Bearer {token}"
+        //    });
+        //    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+        //    {
+        //        {
+        //            new OpenApiSecurityScheme
+        //            {
+        //                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+        //            },
+        //            Array.Empty<string>()
+        //        }
+        //    });
+        //});
 
         builder.Services.AddSharedInfrastructure(builder.Configuration);
         builder.Services.AddAuthServiceInfrastructure(builder.Configuration);

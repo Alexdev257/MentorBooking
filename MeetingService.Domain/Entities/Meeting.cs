@@ -15,7 +15,7 @@ namespace MeetingService.Domain.Entities
         public string Provider { get; set; }    
 
         public string? JoinUrl { get; set; }    
-        public string? HostUrl { get; set; }    
+        public string? HostUrl { get; set; } 
 
         public DateTime? StartedAt { get; set; }
         public DateTime? EndedAt { get; set; }
