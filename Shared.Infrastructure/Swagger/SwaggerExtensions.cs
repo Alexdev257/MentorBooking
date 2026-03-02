@@ -10,23 +10,26 @@ namespace Shared.Infrastructure.Swagger
 {
     public static class SwaggerExtensions
     {
-        public static IServiceCollection AddSharedSwagger(this IServiceCollection services)
+        public static void AddSharedSwaggerGen(this IServiceCollection services, string apiTitle, string apiVersion = "v1")
         {
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo
+                // 1. Định nghĩa thông tin API cơ bản
+                c.SwaggerDoc(apiVersion, new OpenApiInfo
                 {
-                    Title = "Event Management API",
-                    Version = "v1"
+                    Title = apiTitle,
+                    Version = apiVersion
                 });
 
+                // 2. CẤU HÌNH NÚT AUTHORIZE (Ổ KHÓA) - Dùng chung cho tất cả Service
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
-                    Description = "Enter token in the format 'Bearer {token}'",
+                    Description = "Nhập token JWT vào bên dưới (Không cần gõ 'Bearer '):",
                     Name = "Authorization",
                     In = ParameterLocation.Header,
-                    Type = SecuritySchemeType.ApiKey,
-                    Scheme = "Bearer"
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT"
                 });
 
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -43,8 +46,10 @@ namespace Shared.Infrastructure.Swagger
                         new string[] { }
                     }
                 });
+
+                // 3. Fix lỗi trùng tên Schema (nếu có)
+                c.CustomSchemaIds(type => type.FullName);
             });
-            return services;
         }
     }
 }
