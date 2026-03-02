@@ -1,4 +1,9 @@
-﻿using BookingService.Application.Interfaces.Repositories;
+using BookingService.Application.Common;
+using BookingService.Application.Interfaces.Helpers;
+using BookingService.Application.Interfaces.Repositories;
+using BookingService.Application.Interfaces.Services;
+using BookingService.Application.Services;
+using BookingService.Infrastructure.Implements.Helpers;
 using BookingService.Infrastructure.Implements.Repositories;
 using BookingService.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -23,22 +28,44 @@ namespace BookingService.Infrastructure.DependencyInjection
         {
             services.AddDatabase(configuration);
             services.AddScopedInterface();
+            services.AddAutoMapper(typeof(BookingMappingProfile));
             services.AddMediatRInfrastructure(configuration);
             services.AddCorsExtentions();
             services.AddJwtAuthentication(configuration);
             services.AddAuthorizationRole();
 
-            services.AddMessageBus(configuration);
+            AddMessageBusWhenConfigured(services, configuration);
             return services;
+        }
+
+        private static void AddMessageBusWhenConfigured(IServiceCollection services, IConfiguration configuration)
+        {
+            var rabbitEnabled = configuration.GetValue<bool>("RabbitMQ:Enabled", true);
+            var rabbitHost = configuration["RabbitMQ:Host"];
+            if (rabbitEnabled && !string.IsNullOrWhiteSpace(rabbitHost))
+            {
+                services.AddMessageBus(configuration);
+            }
+            else
+            {
+                services.AddScoped<Shared.Contracts.Interfaces.IMessageProducer, Shared.Infrastructure.Bus.NoOpMessageProducer>();
+            }
         }
 
         private static void AddDatabase(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<BookingService.Infrastructure.Persistence.BookingApplicationDbContext>(options =>
+            var connectionString =
+                configuration.GetConnectionString("booking-db") ??
+                configuration.GetConnectionString("DefaultConnection");
+
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new InvalidOperationException(
+                    "Missing connection string. Expected 'booking-db' (Aspire) or 'DefaultConnection' (local).");
+
+            services.AddDbContext<BookingService.Infrastructure.Persistence.BookingApplicationDbContext>((serviceProvider, options) =>
             {
-                //options.UseMySql(configuration.GetConnectionString("DefaultConnection"),
-                //    ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection")));
-                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+                options.UseNpgsql(connectionString);
+                options.AddInterceptors(serviceProvider.GetRequiredService<Shared.Infrastructure.Persistence.Interceptors.AuditableEntityInterceptor>());
             });
 
             services.AddScoped<DbContext>(provider => provider.GetService<BookingService.Infrastructure.Persistence.BookingApplicationDbContext>()!);
@@ -47,8 +74,8 @@ namespace BookingService.Infrastructure.DependencyInjection
         private static void AddScopedInterface(this IServiceCollection service)
         {
             service.AddScoped<IBookingUnitOfWork, UnitOfWork>();
-
-
+            service.AddScoped<IQueryablePager, QueryablePager>();
+            service.AddScoped<IBookingService, BookingService.Application.Services.BookingService>();
         }
 
         private static void AddMediatRInfrastructure(this IServiceCollection service, IConfiguration config)
@@ -100,7 +127,7 @@ namespace BookingService.Infrastructure.DependencyInjection
                         OnAuthenticationFailed = context =>
                         {
                             if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-                                context.Response.Headers.Add("Token-Expired", "true");
+                                context.Response.Headers["Token-Expired"] = "true";
                             return Task.CompletedTask;
                         }
                     };

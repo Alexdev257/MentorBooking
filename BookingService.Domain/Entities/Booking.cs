@@ -1,4 +1,4 @@
-﻿using Shared.Kernel.Domain;
+using Shared.Kernel.Domain;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,7 +16,7 @@ namespace BookingService.Domain.Entities
         public string? Topic { get; set; }
         public string? Notes { get; set; }
         public decimal PriceAmount { get; set; }
-        public string Currency { get; set; }
+        public string Currency { get; set; } = "VND";
         public DateTime ScheduleStart { get; set; }
         public DateTime ScheduleEnd { get; set; }
         public virtual AvailabilitySlot? Slot { get; set; }
