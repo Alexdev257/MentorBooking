@@ -1,5 +1,7 @@
 using AuthService.Infrastructure.DependencyInjection;
 using AuthService.Infrastructure.Persistence;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
@@ -44,6 +46,10 @@ public class Program
 
         builder.Services.AddSharedInfrastructure(builder.Configuration);
         builder.Services.AddAuthServiceInfrastructure(builder.Configuration);
+        FirebaseApp.Create(new AppOptions()
+        {
+            Credential = GoogleCredential.FromFile("mentorbookingproject-firebase-adminsdk-fbsvc-f8160d02d1.json")
+        });
 
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();

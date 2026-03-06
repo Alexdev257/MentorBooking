@@ -13,5 +13,6 @@ namespace AuthService.Application.Interfaces.Repositories
         IGenericRepository<User> Users { get; }
         IGenericRepository<Teacher> Teachers { get; }
         IGenericRepository<Student> Students { get; }
+        IGenericRepository<Review> Reviews { get; }
     }
 }
