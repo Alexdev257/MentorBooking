@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
 
 namespace AuthService.Application.DTOs.Request.Admin;
@@ -22,7 +23,7 @@ public class RegisterTeacherByAdminRequest
     public string? Phone { get; set; }
 
     [MaxLength(500)]
-    public string? AvatarUrl { get; set; }
+    public IFormFile Avatar { get; set; }
 
     [MaxLength(255)]
     public string? Department { get; set; }

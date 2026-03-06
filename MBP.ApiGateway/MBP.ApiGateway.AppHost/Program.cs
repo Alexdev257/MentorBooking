@@ -14,6 +14,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 //var auth = builder.AddProject<Projects.AuthService_Api>("authservice-api")
 //    .WithReference(authDb);
 
+
 var authDb = builder.AddConnectionString("auth-db");
 var bookingDb = builder.AddConnectionString("booking-db");
 var meetingDb = builder.AddConnectionString("meeting-db");

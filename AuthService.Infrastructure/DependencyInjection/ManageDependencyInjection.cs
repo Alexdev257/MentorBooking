@@ -5,6 +5,7 @@ using AuthService.Application.Interfaces.Services;
 using AuthService.Application.Services;
 using AuthService.Infrastructure.Implements.Helpers;
 using AuthService.Infrastructure.Implements.Repositories;
+using AuthService.Infrastructure.Implements.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Shared.Contracts.Common.Wrappers;
+using Shared.Contracts.Interfaces;
 using Shared.Infrastructure.Bus;
 using Shared.Infrastructure.Persistence.Interceptors;
 using Shared.Infrastructure.Persistence.Repositories;
@@ -87,6 +89,7 @@ namespace AuthService.Infrastructure.DependencyInjection
             service.AddScoped<IQueryablePager, QueryablePager>();
             service.AddScoped<IAdminAuthService, AdminAuthService>();
             service.AddScoped<IAuthService, AuthService.Application.Services.AuthService>();
+            service.AddSingleton<IStorageService, FirebaseService>();
         }
 
         private static void AddMediatRInfrastructure(this IServiceCollection service, IConfiguration config)
