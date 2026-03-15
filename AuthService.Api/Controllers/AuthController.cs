@@ -1,4 +1,5 @@
 using AuthService.Application.DTOs.Request.Auth;
+using AuthService.Application.DTOs.Response.Admin;
 using AuthService.Application.DTOs.Response.Auth;
 using AuthService.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -38,6 +39,8 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [ProducesResponseType(typeof(CommonResponse<LoginResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(CommonResponse<LoginResponse>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> LoginAsync([FromBody] LoginRequest? request)
     {
         if (request == null)
@@ -56,6 +59,9 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpPost("refresh")]
+    [ProducesResponseType(typeof(CommonResponse<LoginResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(CommonResponse<LoginResponse>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> RefreshAsync([FromBody] RefreshRequest? request)
     {
         var userId = GetUserIdFromClaim();
@@ -79,6 +85,10 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpPost("logout")]
+    [ProducesResponseType(typeof(CommonResponse<LogoutResponse>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(CommonResponse<LogoutResponse>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> LogoutAsync()
     {
         var userId = GetUserIdFromClaim();

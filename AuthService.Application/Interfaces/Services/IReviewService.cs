@@ -14,10 +14,10 @@ namespace AuthService.Application.Interfaces.Services
 {
     public interface IReviewService
     {
-        Task<CommonResponse<PaginationResponse<ReviewResponseDto>>> GetListReviewsAsync(ReviewGetListRequest request, CancellationToken cancellationToken = default);
-        Task<CommonResponse<ReviewResponseDto?>> GetReviewByIdAsync(Guid id, CancellationToken cancellationToken = default);
+        Task<CommonResponse<PaginationResponse<object>>> GetListReviewsAsync(ReviewGetListRequest request, CancellationToken cancellationToken = default);
+        Task<CommonResponse<ReviewResponseDto?>> GetReviewByIdAsync(Guid mentorId, Guid menteeId, CancellationToken cancellationToken = default);
         Task<CommonResponse<ReviewResponseDto>> CreateReviewAsync(Guid menteeId, ReviewCreateRequest request, CancellationToken cancellationToken = default);
-        Task<CommonResponse<ReviewResponseDto>> UpdateRiewAsync(Guid id, Guid MenteeId, ReviewUpdateRequest request, CancellationToken cancellationToken = default);
-        Task<CommonResponse<bool>> DeleteStudentAsync(Guid id, CancellationToken cancellationToken = default);
+        Task<CommonResponse<ReviewResponseDto>> UpdateReviewAsync(Guid id, ReviewUpdateRequest request, CancellationToken cancellationToken = default);
+        Task<CommonResponse<bool>> DeleteReviewAsync(Guid id, CancellationToken cancellationToken = default);
     }
 }

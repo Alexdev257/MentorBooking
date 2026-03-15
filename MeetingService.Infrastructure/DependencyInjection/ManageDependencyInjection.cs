@@ -32,7 +32,8 @@ namespace MeetingService.Infrastructure.DependencyInjection
             services.AddAuthorizationRole();
             services.AddSharedSwaggerGen("Meeting Service API");
 
-            services.AddMessageBus(configuration);
+            var applicationAssembly = Assembly.Load("MeetingService.Application");
+            services.AddMessageBus(configuration, applicationAssembly);
             return services;
         }
 
