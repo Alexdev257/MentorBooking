@@ -16,10 +16,12 @@ namespace BookingService.Api.Controllers;
 public class BookingsController : ControllerBase
 {
     private readonly IBookingService _bookingService;
+    private readonly IZoomService _zoomService;
 
-    public BookingsController(IBookingService bookingService)
+    public BookingsController(IBookingService bookingService, IZoomService zoomService)
     {
         _bookingService = bookingService;
+        _zoomService = zoomService;
     }
 
     private Guid? GetUserIdFromClaim()
@@ -168,5 +170,21 @@ public class BookingsController : ControllerBase
         if (!result.IsSuccess)
             return result.Message == "Booking not found" ? NotFound(result) : BadRequest(result);
         return Ok(result);
+    }
+
+    /// <summary>Debugging endpoint to get Zoom Access Token.</summary>
+    [AllowAnonymous]
+    [HttpGet("zoom-token")]
+    public async Task<IActionResult> GetZoomAccessToken(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var token = await _zoomService.GetAccessToken(cancellationToken);
+            return Ok(new { access_token = token });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 }

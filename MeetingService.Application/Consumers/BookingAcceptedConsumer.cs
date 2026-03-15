@@ -32,9 +32,9 @@ namespace MeetingService.Application.Consumers
                 Id = Guid.NewGuid(),
                 BookingId = message.BookingId,
                 Status = 0, // Pending
-                Provider = "GoogleMeet",
+                Provider = "Zoom",
                 JoinUrl = message.JoinUrl,
-                HostUrl = message.JoinUrl,
+                HostUrl = message.JoinUrl, // Mentor uses the same link for now as requested
                 StartedAt = message.StartedAt,
                 EndedAt = message.EndedAt
             };

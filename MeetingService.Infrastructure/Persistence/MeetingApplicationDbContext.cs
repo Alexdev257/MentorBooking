@@ -1,4 +1,4 @@
-﻿using Google;
+using Google;
 using MeetingService.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Shared.Infrastructure.Persistence.Interceptors;
