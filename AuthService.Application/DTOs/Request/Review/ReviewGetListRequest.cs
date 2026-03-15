@@ -16,5 +16,6 @@ namespace AuthService.Application.DTOs.Request.Review
         public string? Comment { get; set; }
         public bool? Sorting { get; set; }
         public string? SortBy { get; set; }
+        public string? Fields { get; set; }
     }
 }

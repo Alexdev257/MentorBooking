@@ -1,0 +1,7 @@
+﻿d:\code_PRN232\MentorBooking\MeetingService.Application\CQRS\Handler\JoinMeetingCommandHandler.cs(76,91): error CS1061: 'TimeSpan?' does not contain a definition for 'TotalMinutes' and no accessible extension method 'TotalMinutes' accepting a first argument of type 'TimeSpan?' could be found (are you missing a using directive or an assembly reference?) [d:\code_PRN232\MentorBooking\MeetingService.Application\MeetingService.Application.csproj]
+
+Build FAILED.
+    1 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:01.16

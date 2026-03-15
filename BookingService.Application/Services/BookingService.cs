@@ -9,6 +9,8 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Shared.Contracts.Common.Wrappers;
 using SharedContracts.Common.Wrappers.Requests;
+using Shared.Contracts.Interfaces;
+using Shared.Contracts.Events;
 
 namespace BookingService.Application.Services;
 
@@ -18,13 +20,15 @@ public class BookingService : IBookingService
     private readonly IQueryablePager _pager;
     private readonly IMapper _mapper;
     private readonly IGoogleCalendarService _googleCalendarService;
+    private readonly IMessageProducer _messageProducer;
 
-    public BookingService(IBookingUnitOfWork unitOfWork, IQueryablePager pager, IMapper mapper, IGoogleCalendarService googleCalendarService)
+    public BookingService(IBookingUnitOfWork unitOfWork, IQueryablePager pager, IMapper mapper, IGoogleCalendarService googleCalendarService, IMessageProducer messageProducer)
     {
         _unitOfWork = unitOfWork;
         _pager = pager;
         _mapper = mapper;
         _googleCalendarService = googleCalendarService;
+        _messageProducer = messageProducer;
     }
 
     public async Task<CommonResponse<List<SlotResponseDto>>> GetAvailableSlotsAsync(Guid mentorId, DateTime? from, DateTime? to, CancellationToken cancellationToken = default)
@@ -244,6 +248,18 @@ public class BookingService : IBookingService
 
         _unitOfWork.Bookings.UpdateAsync(booking);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (!string.IsNullOrEmpty(meetLink))
+        {
+            await _messageProducer.PublishAsync(new BookingAcceptedEvent(
+                booking.Id,
+                booking.MentorId,
+                booking.MenteeId,
+                meetLink,
+                booking.ScheduleStart,
+                booking.ScheduleEnd
+            ), cancellationToken);
+        }
         response.IsSuccess = true;
         response.Message = !string.IsNullOrEmpty(meetLink)
             ? "Booking accepted. Meeting link has been created."
