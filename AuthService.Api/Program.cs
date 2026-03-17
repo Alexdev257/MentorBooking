@@ -46,10 +46,21 @@ public class Program
 
         builder.Services.AddSharedInfrastructure(builder.Configuration);
         builder.Services.AddAuthServiceInfrastructure(builder.Configuration);
-        FirebaseApp.Create(new AppOptions()
+
+        // Firebase Admin SDK - chỉ khởi tạo nếu file credential tồn tại
+        var firebaseCredPath = builder.Configuration["Firebase:CredentialPath"]
+                               ?? "mentorbookingproject-firebase-adminsdk-fbsvc-f8160d02d1.json";
+        if (File.Exists(firebaseCredPath))
         {
-            Credential = GoogleCredential.FromFile("mentorbookingproject-firebase-adminsdk-fbsvc-f8160d02d1.json")
-        });
+            FirebaseApp.Create(new AppOptions
+            {
+                Credential = GoogleCredential.FromFile(firebaseCredPath)
+            });
+        }
+        else
+        {
+            Console.WriteLine($"[WARNING] Firebase credential file not found: '{firebaseCredPath}'. Firebase Admin SDK disabled. Download from Firebase Console and place in AuthService.Api project folder.");
+        }
 
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();

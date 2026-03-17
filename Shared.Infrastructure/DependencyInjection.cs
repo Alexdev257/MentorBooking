@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,10 +29,15 @@ namespace Shared.Infrastructure
             services.AddHttpContextAccessor();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<AuditableEntityInterceptor>();
-            services.AddStackExchangeRedisCache(options =>
+            var redisConnection = configuration.GetConnectionString("Redis");
+            if (!string.IsNullOrWhiteSpace(redisConnection))
             {
-                options.Configuration = configuration.GetConnectionString("Redis");
-            });
+                services.AddStackExchangeRedisCache(options => options.Configuration = redisConnection);
+            }
+            else
+            {
+                services.AddDistributedMemoryCache();
+            }
             services.AddScoped<ICacheService, RedisCacheService>();
             return services;
         }

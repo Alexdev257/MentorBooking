@@ -1,4 +1,4 @@
-﻿using AIService.Application.Interfaces.Repositories;
+using AIService.Application.Interfaces.Repositories;
 using AIService.Domain.Entities;
 using AIService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -23,8 +23,8 @@ namespace AIService.Infrastructure.Implements.Repositories
 
         public IGenericRepository<ActionItem> ActionItems => new GenericRepository<ActionItem>(_context);
         public IGenericRepository<MeetingSummary> MeetingSummaries => new GenericRepository<MeetingSummary>(_context);
-        public IGenericRepository<Transcript> Transcripts => new GenericRepository<Transcript>(_context);
-        public IGenericRepository<TranscriptSegment> TranscriptSegments => new GenericRepository<TranscriptSegment>(_context);
+        public IGenericRepository<AudioTranscript> Transcripts => new GenericRepository<AudioTranscript>(_context);
+        public IGenericRepository<AudioTranscriptSegment> TranscriptSegments => new GenericRepository<AudioTranscriptSegment>(_context);
 
         public async Task BeginTransactionAsync()
         {

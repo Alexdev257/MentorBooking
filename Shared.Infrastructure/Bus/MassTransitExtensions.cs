@@ -1,4 +1,4 @@
-﻿using MassTransit;
+using MassTransit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Shared.Contracts.Interfaces;
@@ -14,6 +14,13 @@ namespace Shared.Infrastructure.Bus
     {
         public static IServiceCollection AddMessageBus(this IServiceCollection services, IConfiguration configuration, params System.Reflection.Assembly[] consumerAssemblies)
         {
+            var host = configuration["RabbitMQ:Host"];
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                services.AddScoped<IMessageProducer, NoOpMessageProducer>();
+                return services;
+            }
+
             services.AddMassTransit(x =>
             {
                 if (consumerAssemblies != null && consumerAssemblies.Length > 0)
@@ -23,10 +30,10 @@ namespace Shared.Infrastructure.Bus
 
                 x.UsingRabbitMq((context, cfg) =>
                 {
-                    cfg.Host(configuration["RabbitMQ:Host"], "/", h =>
+                    cfg.Host(host, "/", h =>
                     {
-                        h.Username(configuration["RabbitMQ:Username"]!);
-                        h.Password(configuration["RabbitMQ:Password"]!);
+                        h.Username(configuration["RabbitMQ:Username"] ?? "guest");
+                        h.Password(configuration["RabbitMQ:Password"] ?? "guest");
                     });
 
                     cfg.ConfigureEndpoints(context);

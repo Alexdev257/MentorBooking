@@ -18,8 +18,10 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\AIService.Application\AIService.Application.csproj" />
+		<ProjectReference Include="..\AIService.Domain\AIService.Domain.csproj" />
 		<ProjectReference Include="..\AIService.Infrastructure\AIService.Infrastructure.csproj" />
 		<ProjectReference Include="..\MBP.ApiGateway\MBP.ApiGateway.ServiceDefaults\MBP.ApiGateway.ServiceDefaults.csproj" />
+		<ProjectReference Include="..\Shared.Infrastructure\Shared.Infrastructure.csproj" />
 	</ItemGroup>
 
 </Project>

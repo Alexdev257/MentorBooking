@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -9,9 +9,11 @@
 	<ItemGroup>
 		<ProjectReference Include="..\AIService.Domain\AIService.Domain.csproj" />
 		<ProjectReference Include="..\Shared.Contracts\Shared.Contracts.csproj" />
+		<ProjectReference Include="..\Shared.Kernel\Shared.Kernel.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="AutoMapper" Version="12.0.1" />
 		<PackageReference Include="MediatR" Version="12.2.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.17" />

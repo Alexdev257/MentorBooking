@@ -84,6 +84,150 @@ namespace AIService.Infrastructure.Migrations
                     b.ToTable("ActionItem", (string)null);
                 });
 
+            modelBuilder.Entity("AIService.Domain.Entities.AudioTranscript", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CleanText")
+                        .HasColumnType("text")
+                        .HasColumnName("clean_text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("ExtractedAudioPath")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("extracted_audio_path");
+
+                    b.Property<long?>("FileSizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("file_size_bytes");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("MimeType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("mime_type");
+
+                    b.Property<string>("OriginalFileName")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("original_file_name");
+
+                    b.Property<string>("OriginalFilePath")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("original_file_path");
+
+                    b.Property<DateTime?>("ProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at_utc");
+
+                    b.Property<string>("RawText")
+                        .HasColumnType("text")
+                        .HasColumnName("raw_text");
+
+                    b.Property<int>("SourceType")
+                        .HasColumnType("integer")
+                        .HasColumnName("source_type");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("audio_transcripts", (string)null);
+                });
+
+            modelBuilder.Entity("AIService.Domain.Entities.AudioTranscriptSegment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AudioTranscriptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("audio_transcript_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<double>("EndSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("end_seconds");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
+                    b.Property<double>("StartSeconds")
+                        .HasColumnType("double precision")
+                        .HasColumnName("start_seconds");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AudioTranscriptId");
+
+                    b.ToTable("audio_transcript_segments", (string)null);
+                });
+
             modelBuilder.Entity("AIService.Domain.Entities.MeetingSummary", b =>
                 {
                     b.Property<string>("Id")
@@ -149,136 +293,18 @@ namespace AIService.Infrastructure.Migrations
                     b.ToTable("MeetingSummary", (string)null);
                 });
 
-            modelBuilder.Entity("AIService.Domain.Entities.Transcript", b =>
+            modelBuilder.Entity("AIService.Domain.Entities.AudioTranscriptSegment", b =>
                 {
-                    b.Property<string>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValueSql("false");
-
-                    b.Property<string>("Language")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("language");
-
-                    b.Property<string>("MeetingId")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("meeting_id");
-
-                    b.Property<string>("Model")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("model");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Transcript", (string)null);
-                });
-
-            modelBuilder.Entity("AIService.Domain.Entities.TranscriptSegment", b =>
-                {
-                    b.Property<string>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("id");
-
-                    b.Property<decimal?>("Confidence")
-                        .HasColumnType("numeric")
-                        .HasColumnName("confidence");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<int>("EndMs")
-                        .HasColumnType("integer")
-                        .HasColumnName("=end_ms");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValueSql("false");
-
-                    b.Property<string>("SpeakerLabel")
-                        .HasColumnType("text")
-                        .HasColumnName("speaker_label");
-
-                    b.Property<int>("StartMs")
-                        .HasColumnType("integer")
-                        .HasColumnName("start_ms");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("text");
-
-                    b.Property<string>("TranscriptId")
-                        .IsRequired()
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("transcript_id");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TranscriptId");
-
-                    b.ToTable("TranscriptSegment", (string)null);
-                });
-
-            modelBuilder.Entity("AIService.Domain.Entities.TranscriptSegment", b =>
-                {
-                    b.HasOne("AIService.Domain.Entities.Transcript", "Transcript")
+                    b.HasOne("AIService.Domain.Entities.AudioTranscript", "AudioTranscript")
                         .WithMany("Segments")
-                        .HasForeignKey("TranscriptId")
+                        .HasForeignKey("AudioTranscriptId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Transcript");
+                    b.Navigation("AudioTranscript");
                 });
 
-            modelBuilder.Entity("AIService.Domain.Entities.Transcript", b =>
+            modelBuilder.Entity("AIService.Domain.Entities.AudioTranscript", b =>
                 {
                     b.Navigation("Segments");
                 });
