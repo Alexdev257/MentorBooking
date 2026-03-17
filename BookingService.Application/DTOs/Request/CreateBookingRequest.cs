@@ -20,4 +20,6 @@ public class CreateBookingRequest
 
     [MaxLength(10)]
     public string Currency { get; set; } = "VND";
+
+    public List<string> InvitedEmails { get; set; } = new();
 }

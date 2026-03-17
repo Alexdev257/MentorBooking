@@ -1,4 +1,5 @@
-﻿using MeetingService.Application.Interfaces.Repositories;
+﻿using MeetingService.Application.Consumers;
+using MeetingService.Application.Interfaces.Repositories;
 using MeetingService.Infrastructure.Implements.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
@@ -33,6 +34,7 @@ namespace MeetingService.Infrastructure.DependencyInjection
             services.AddSharedSwaggerGen("Meeting Service API");
 
             var applicationAssembly = Assembly.Load("MeetingService.Application");
+            //services.AddMessageBus(configuration, typeof(BookingAcceptedConsumer).Assembly);
             services.AddMessageBus(configuration, applicationAssembly);
             return services;
         }
