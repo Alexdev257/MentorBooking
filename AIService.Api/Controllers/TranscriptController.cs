@@ -1,3 +1,4 @@
+using AIService.Application.DTOs.Summary;
 using AIService.Application.DTOs.Transcripts;
 using AIService.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -96,6 +97,19 @@ public class TranscriptController : ControllerBase
     {
         if (pageSize > 100) pageSize = 100;
         var result = await _transcriptService.GetListAsync(pageNumber, pageSize, cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/summarize")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(CommonResponse<SummaryResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Summarize(Guid id, CancellationToken cancellationToken = default)
+    {
+        var result = await _transcriptService.SummarizeAsync(id, cancellationToken);
+        if (!result.IsSuccess)
+            return result.Message == "Không tìm thấy transcript." ? NotFound(result) : BadRequest(result);
         return Ok(result);
     }
 }

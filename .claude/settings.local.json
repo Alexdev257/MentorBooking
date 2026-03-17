@@ -11,7 +11,8 @@
       "Bash(find \"D:/FPT/SEM8/PRN232/MentorBooking/AIService\"* -type f -name \"*.cs\")",
       "Bash(/tmp/ffcheck/Program.cs:*)",
       "Read(//tmp/**)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(dotnet add:*)"
     ]
   }
 }

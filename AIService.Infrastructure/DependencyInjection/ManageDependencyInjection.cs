@@ -1,10 +1,10 @@
 using AIService.Application.Common;
 using AIService.Application.Interfaces;
+using AIService.Application.Interfaces.Repositories;
 using AIService.Application.Interfaces.Services;
 using AIService.Application.Services;
 using AIService.Infrastructure.Implements.Repositories;
 using AIService.Infrastructure.Services;
-using AIService.Application.Interfaces.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -49,6 +49,7 @@ namespace AIService.Infrastructure.DependencyInjection
             service.AddScoped<IFileStorageService, LocalFileStorageService>();
             service.AddScoped<IMediaProcessingService, FfmpegMediaProcessingService>();
             service.AddScoped<ITranscriptionService, WhisperTranscriptionService>();
+            service.AddScoped<ISummaryService, GeminiSummaryService>();
             service.AddScoped<ITranscriptService, TranscriptService>();
         }
 
