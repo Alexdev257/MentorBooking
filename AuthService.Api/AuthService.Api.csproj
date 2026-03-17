@@ -18,4 +18,11 @@
     <ProjectReference Include="..\AuthService.Infrastructure\AuthService.Infrastructure.csproj" />
     <ProjectReference Include="..\MBP.ApiGateway\MBP.ApiGateway.ServiceDefaults\MBP.ApiGateway.ServiceDefaults.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Copy Firebase credential file to output if it exists (file is gitignored, must be added manually) -->
+    <None Update="mentorbookingproject-firebase-adminsdk-fbsvc-f8160d02d1.json"
+          Condition="Exists('mentorbookingproject-firebase-adminsdk-fbsvc-f8160d02d1.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

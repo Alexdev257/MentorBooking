@@ -19,10 +19,16 @@ namespace AuthService.Infrastructure.Implements.Services
         public FirebaseService(IConfiguration configuration)
         {
             var credentialPath = configuration["Firebase:CredentialPath"];
-            _bucketName = configuration["Firebase:BucketName"];
+            _bucketName = configuration["Firebase:BucketName"] ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(credentialPath) || !File.Exists(credentialPath))
+            {
+                Console.WriteLine($"[WARNING] FirebaseService: credential file not found ('{credentialPath}'). Upload/Delete will throw at runtime.");
+                _storageClient = null!;
+                return;
+            }
 
             var credential = GoogleCredential.FromFile(credentialPath);
-
             _storageClient = StorageClient.Create(credential);
         }
         public async Task<string> UploadFileAsync(

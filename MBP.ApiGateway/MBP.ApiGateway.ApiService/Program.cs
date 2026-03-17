@@ -1,8 +1,24 @@
-
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Khi chạy qua Aspire Dashboard, dùng URL do AppHost inject thay vì port cố định trong appsettings
+// Aspire 9 inject service URL theo format: services__{name}__{scheme}__0
+string? GetAspireServiceUrl(string name) =>
+    builder.Configuration[$"services__{name}__https__0"] ??
+    builder.Configuration[$"services__{name}__http__0"];
+
+var clusterOverrides = new Dictionary<string, string?>();
+var aiUrl      = GetAspireServiceUrl("aiservice-api");
+var authUrl    = GetAspireServiceUrl("authservice-api");
+var bookingUrl = GetAspireServiceUrl("bookingservice-api");
+var meetingUrl = GetAspireServiceUrl("meetingservice-api");
+if (!string.IsNullOrEmpty(aiUrl))      clusterOverrides["ReverseProxy:Clusters:ai-cluster:Destinations:destination1:Address"]      = aiUrl;
+if (!string.IsNullOrEmpty(authUrl))    clusterOverrides["ReverseProxy:Clusters:auth-cluster:Destinations:destination1:Address"]    = authUrl;
+if (!string.IsNullOrEmpty(bookingUrl)) clusterOverrides["ReverseProxy:Clusters:booking-cluster:Destinations:destination1:Address"] = bookingUrl;
+if (!string.IsNullOrEmpty(meetingUrl)) clusterOverrides["ReverseProxy:Clusters:meeting-cluster:Destinations:destination1:Address"] = meetingUrl;
+if (clusterOverrides.Count > 0)
+    builder.Configuration.AddInMemoryCollection(clusterOverrides);
 
 builder.AddServiceDefaults();
 
@@ -56,7 +72,8 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
-    c.CustomSchemaIds(type => type.FullName);
+    c.CustomSchemaIds(type => type.FullName ?? type.Name ?? "Schema");
+    c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
 });
 
 
