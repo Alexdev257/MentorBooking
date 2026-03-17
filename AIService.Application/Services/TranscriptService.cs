@@ -1,3 +1,4 @@
+using AIService.Application.DTOs.Summary;
 using AIService.Application.DTOs.Transcripts;
 using AIService.Application.Interfaces;
 using AIService.Application.Interfaces.Repositories;
@@ -7,6 +8,7 @@ using AIService.Domain.Enum;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Shared.Contracts.Common.Wrappers;
+using System.Text.Json;
 
 namespace AIService.Application.Services;
 
@@ -17,6 +19,7 @@ public class TranscriptService : ITranscriptService
     private readonly IFileStorageService _fileStorage;
     private readonly IMediaProcessingService _mediaProcessing;
     private readonly ITranscriptionService _transcription;
+    private readonly ISummaryService _summaryService;
 
     private static readonly HashSet<string> VideoMimeTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -28,13 +31,15 @@ public class TranscriptService : ITranscriptService
         IMapper mapper,
         IFileStorageService fileStorage,
         IMediaProcessingService mediaProcessing,
-        ITranscriptionService transcription)
+        ITranscriptionService transcription,
+        ISummaryService summaryService)
     {
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _fileStorage = fileStorage;
         _mediaProcessing = mediaProcessing;
         _transcription = transcription;
+        _summaryService = summaryService;
     }
 
     public async Task<CommonResponse<TranscriptUploadResponseDto>> UploadAsync(string title, int sourceType, Stream fileStream, string fileName, string contentType, long fileSizeBytes, Guid? userId, CancellationToken cancellationToken = default)
@@ -182,6 +187,62 @@ public class TranscriptService : ITranscriptService
         var items = await query.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
         var dtos = _mapper.Map<List<TranscriptListItemDto>>(items);
         return new CommonResponse<List<TranscriptListItemDto>> { IsSuccess = true, Data = dtos, Message = "Thành công." };
+    }
+
+    public async Task<CommonResponse<SummaryResponseDto>> SummarizeAsync(Guid transcriptId, CancellationToken cancellationToken = default)
+    {
+        var entity = await _unitOfWork.Transcripts.GetByIdAsync(transcriptId);
+        if (entity == null || entity.IsDeleted)
+            return new CommonResponse<SummaryResponseDto> { IsSuccess = false, Message = "Không tìm thấy transcript." };
+
+        if (entity.Status != (TranscriptStatus)3)
+            return new CommonResponse<SummaryResponseDto> { IsSuccess = false, Message = "Transcript chưa được xử lý xong." };
+
+        if (string.IsNullOrWhiteSpace(entity.CleanText))
+            return new CommonResponse<SummaryResponseDto> { IsSuccess = false, Message = "Transcript không có nội dung." };
+
+        // Check if summary already exists
+        var existing = await _unitOfWork.MeetingSummaries
+            .FindAsync(s => s.MeetingId == transcriptId && !s.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existing != null)
+        {
+            return new CommonResponse<SummaryResponseDto>
+            {
+                IsSuccess = true,
+                Data = new SummaryResponseDto
+                {
+                    TranscriptId = transcriptId,
+                    Summary = existing.Summary,
+                    KeyPoints = JsonSerializer.Deserialize<List<string>>(existing.KeyPoints) ?? new(),
+                    Topics = JsonSerializer.Deserialize<List<string>>(existing.Topics) ?? new(),
+                    Sentiment = existing.Sentiment,
+                    Model = existing.Model ?? string.Empty
+                },
+                Message = "Thành công."
+            };
+        }
+
+        var result = await _summaryService.SummarizeAsync(entity.CleanText, cancellationToken);
+        if (result == null)
+            return new CommonResponse<SummaryResponseDto> { IsSuccess = false, Message = "Tóm tắt thất bại." };
+
+        var summary = new MeetingSummary
+        {
+            Id = Guid.NewGuid(),
+            MeetingId = transcriptId,
+            Summary = result.Summary,
+            KeyPoints = JsonSerializer.Serialize(result.KeyPoints),
+            Topics = JsonSerializer.Serialize(result.Topics),
+            Sentiment = result.Sentiment,
+            Model = result.Model
+        };
+
+        await _unitOfWork.MeetingSummaries.AddAsync(summary);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new CommonResponse<SummaryResponseDto> { IsSuccess = true, Data = result, Message = "Tóm tắt thành công." };
     }
 
     private static bool IsVideo(string? contentType) => contentType != null && VideoMimeTypes.Contains(contentType);

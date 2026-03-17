@@ -1,3 +1,4 @@
+using AIService.Application.DTOs.Summary;
 using AIService.Application.DTOs.Transcripts;
 using Shared.Contracts.Common.Wrappers;
 
@@ -8,4 +9,5 @@ public interface ITranscriptService
     Task<CommonResponse<TranscriptUploadResponseDto>> UploadAsync(string title, int sourceType, Stream fileStream, string fileName, string contentType, long fileSizeBytes, Guid? userId, CancellationToken cancellationToken = default);
     Task<CommonResponse<TranscriptDetailDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<CommonResponse<List<TranscriptListItemDto>>> GetListAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default);
+    Task<CommonResponse<SummaryResponseDto>> SummarizeAsync(Guid transcriptId, CancellationToken cancellationToken = default);
 }
