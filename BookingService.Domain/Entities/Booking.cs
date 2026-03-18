@@ -24,7 +24,6 @@ namespace BookingService.Domain.Entities
         /// <summary>Google Calendar event id (for updates/cancellation).</summary>
         public string? GoogleEventId { get; set; }
         public virtual AvailabilitySlot? Slot { get; set; }
-        public virtual ICollection<BookingParticipant> Participants { get; set; } = new List<BookingParticipant>();
 
     }
 }

@@ -164,54 +164,6 @@ namespace BookingService.Infrastructure.Migrations
                     b.ToTable("bookings", (string)null);
                 });
 
-            modelBuilder.Entity("BookingService.Domain.Entities.BookingParticipant", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("BookingId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid?>("MenteeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ZoomJoinUrl")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ZoomRegistrantId")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BookingId");
-
-                    b.ToTable("BookingParticipants");
-                });
-
             modelBuilder.Entity("BookingService.Domain.Entities.Job", b =>
                 {
                     b.Property<Guid>("Id")
@@ -302,25 +254,9 @@ namespace BookingService.Infrastructure.Migrations
                     b.Navigation("Slot");
                 });
 
-            modelBuilder.Entity("BookingService.Domain.Entities.BookingParticipant", b =>
-                {
-                    b.HasOne("BookingService.Domain.Entities.Booking", "Booking")
-                        .WithMany("Participants")
-                        .HasForeignKey("BookingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Booking");
-                });
-
             modelBuilder.Entity("BookingService.Domain.Entities.AvailabilitySlot", b =>
                 {
                     b.Navigation("Bookings");
-                });
-
-            modelBuilder.Entity("BookingService.Domain.Entities.Booking", b =>
-                {
-                    b.Navigation("Participants");
                 });
 #pragma warning restore 612, 618
         }

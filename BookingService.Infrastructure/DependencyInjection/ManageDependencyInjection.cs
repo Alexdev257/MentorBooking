@@ -32,7 +32,7 @@ namespace BookingService.Infrastructure.DependencyInjection
         public static IServiceCollection AddBookingServiceInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddDatabase(configuration);
-            services.AddScopedInterface(configuration);
+            services.AddScopedInterface();
             services.AddAutoMapper(typeof(BookingMappingProfile));
             services.AddMediatRInfrastructure(configuration);
             services.AddCorsExtentions();
@@ -77,14 +77,11 @@ namespace BookingService.Infrastructure.DependencyInjection
             services.AddScoped<DbContext>(provider => provider.GetService<BookingService.Infrastructure.Persistence.BookingApplicationDbContext>()!);
         }
 
-        private static void AddScopedInterface(this IServiceCollection service, IConfiguration configuration)
+        private static void AddScopedInterface(this IServiceCollection service)
         {
             service.AddScoped<IBookingUnitOfWork, UnitOfWork>();
             service.AddScoped<IQueryablePager, QueryablePager>();
             service.AddScoped<IGoogleCalendarService, GoogleCalendarService>();
-            service.AddHttpClient<IZoomService, ZoomService>(client => {
-                client.BaseAddress = new Uri(configuration["Zoom:BaseUrl"] ?? "https://api.zoom.us/v2/");
-            });
             service.AddScoped<IBookingService, BookingService.Application.Services.BookingService>();
         }
 
@@ -136,7 +133,7 @@ namespace BookingService.Infrastructure.DependencyInjection
                         OnAuthenticationFailed = context =>
                         {
                             if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-                                context.Response.Headers["Token-Expired"] = "true";
+                                context.Response.Headers.Add("Token-Expired", "true");
                             return Task.CompletedTask;
                         },
                         // 1. Xử lý khi chưa đăng nhập hoặc Token sai (401 Unauthorized)

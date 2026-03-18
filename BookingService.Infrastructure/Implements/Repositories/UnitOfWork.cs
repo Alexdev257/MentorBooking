@@ -1,4 +1,4 @@
-using BookingService.Application.Interfaces.Repositories;
+﻿using BookingService.Application.Interfaces.Repositories;
 using BookingService.Domain.Entities;
 using BookingService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -23,7 +23,6 @@ namespace BookingService.Infrastructure.Implements.Repositories
 
         public IGenericRepository<AvailabilitySlot> AvailabilitySlots => new GenericRepository<AvailabilitySlot>(_context);
         public IGenericRepository<Booking> Bookings => new GenericRepository<Booking>(_context);
-        public IGenericRepository<BookingParticipant> BookingParticipants => new GenericRepository<BookingParticipant>(_context);
         public IGenericRepository<Job> Jobs => new GenericRepository<Job>(_context);
 
         public async Task BeginTransactionAsync()

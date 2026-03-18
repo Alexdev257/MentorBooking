@@ -10,7 +10,6 @@ namespace BookingService.Infrastructure.Persistence
 
         public virtual DbSet<AvailabilitySlot> AvailabilitySlots { get; set; }
         public virtual DbSet<Booking> Bookings { get; set; }
-        public virtual DbSet<BookingParticipant> BookingParticipants { get; set; }
         public virtual DbSet<Job> Jobs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
