@@ -21,6 +21,7 @@ public static class ExternalServiceRegistrationExtensions
 
         var bookingService = builder.AddProject<Projects.BookingService_Api>("bookingservice-api")
             .WithReference(bookingDb)
+            .WithReference(authService)
             .WaitFor(postgres);
 
         var meetingService = builder.AddProject<Projects.MeetingService_Api>("meetingservice-api")

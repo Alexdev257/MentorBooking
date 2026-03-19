@@ -344,4 +344,23 @@ public class AdminAuthService : IAdminAuthService
         response.Data = true;
         return response;
     }
+
+    public async Task<CommonResponse<UserInfoDto?>> GetUserInfoByIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null)
+            return new CommonResponse<UserInfoDto?> { IsSuccess = false, Message = "User not found", Data = null };
+
+        return new CommonResponse<UserInfoDto?>
+        {
+            IsSuccess = true,
+            Message = "Success",
+            Data = new UserInfoDto
+            {
+                UserId = user.Id,
+                Email = user.Email,
+                FullName = user.Fullname
+            }
+        };
+    }
 }

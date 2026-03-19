@@ -21,14 +21,16 @@ public class BookingService : IBookingService
     private readonly IMapper _mapper;
     private readonly IZoomService _zoomService;
     private readonly IMessageProducer _messageProducer;
+    private readonly IUserService _userService;
 
-    public BookingService(IBookingUnitOfWork unitOfWork, IQueryablePager pager, IMapper mapper, IZoomService zoomService, IMessageProducer messageProducer)
+    public BookingService(IBookingUnitOfWork unitOfWork, IQueryablePager pager, IMapper mapper, IZoomService zoomService, IMessageProducer messageProducer, IUserService userService)
     {
         _unitOfWork = unitOfWork;
         _pager = pager;
         _mapper = mapper;
         _zoomService = zoomService;
         _messageProducer = messageProducer;
+        _userService = userService;
     }
 
     public async Task<CommonResponse<List<SlotResponseDto>>> GetAvailableSlotsAsync(Guid mentorId, DateTime? from, DateTime? to, CancellationToken cancellationToken = default)
@@ -160,14 +162,19 @@ public class BookingService : IBookingService
             ScheduleEnd = slot.EndAt
         };
 
+        // Fetch mentee info from AuthService
+        var menteeInfo = await _userService.GetUserInfoAsync(menteeId, cancellationToken);
+        var menteeEmail = menteeInfo?.Email ?? "unknown@example.com";
+        var menteeName = menteeInfo?.FullName ?? "Mentee";
+
         // Add primary mentee as a participant
         booking.Participants.Add(new BookingParticipant
         {
             Id = Guid.NewGuid(),
             BookingId = booking.Id,
             MenteeId = menteeId,
-            Email = "mentee@example.com", // This should come from a user service or claim, but for now using a placeholder
-            Name = "Primary Mentee"
+            Email = menteeEmail,
+            Name = menteeName
         });
 
         // Add invited mentees
@@ -263,9 +270,10 @@ public class BookingService : IBookingService
         }
         booking.Status = (int)BookingStatusEnum.Confirmed;
 
-        // var (eventId, meetLink) = await _googleCalendarService.CreateEventWithMeetAsync(booking, cancellationToken);
-        // if (!string.IsNullOrEmpty(eventId))
-        //     booking.GoogleEventId = eventId;
+        // Fetch mentor info from AuthService
+        var mentorInfo = await _userService.GetUserInfoAsync(booking.MentorId, cancellationToken);
+        var mentorEmail = mentorInfo?.Email ?? "mentor@unknown.com";
+        var mentorName = mentorInfo?.FullName ?? "Mentor";
 
         var (meetingId, joinUrlCommon, hostUrl) = await _zoomService.CreateMeetingAsync(booking, cancellationToken);
         if (!string.IsNullOrEmpty(meetingId))
@@ -285,7 +293,7 @@ public class BookingService : IBookingService
                 await _messageProducer.PublishAsync(new SendZoomInviteEvent(
                     participant.Email,
                     participant.Name,
-                    "Mentor Name", // In a real scenario, this would be fetched from the User/Mentor service
+                    mentorName,
                     booking.Topic ?? "Mentor Session",
                     joinUrl,
                     booking.ScheduleStart,
@@ -300,8 +308,8 @@ public class BookingService : IBookingService
             
             // Publish host invitation event for Mentor
             await _messageProducer.PublishAsync(new SendZoomHostInviteEvent(
-                "mentor@example.com", // Placeholder: Should be booking.Mentor.Email
-                "Mentor Name",        // Placeholder: Should be booking.Mentor.FullName
+                mentorEmail,
+                mentorName,
                 booking.Topic ?? "Mentor Session",
                 hostUrl,
                 booking.ScheduleStart,

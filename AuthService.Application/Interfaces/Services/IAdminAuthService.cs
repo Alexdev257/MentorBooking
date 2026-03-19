@@ -21,4 +21,6 @@ public interface IAdminAuthService
     Task<CommonResponse<TeacherResponseDto>> UpdateTeacherAsync(Guid id, UpdateTeacherByAdminRequest request, CancellationToken cancellationToken = default);
     Task<CommonResponse<TeacherResponseDto>> UpdateTeacherStatusAsync(Guid id, UpdateTeacherStatusRequest request, CancellationToken cancellationToken = default);
     Task<CommonResponse<bool>> DeleteTeacherAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<CommonResponse<UserInfoDto?>> GetUserInfoByIdAsync(Guid userId, CancellationToken cancellationToken = default);
 }

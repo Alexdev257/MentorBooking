@@ -85,6 +85,10 @@ namespace BookingService.Infrastructure.DependencyInjection
             service.AddHttpClient<IZoomService, ZoomService>(client => {
                 client.BaseAddress = new Uri(configuration["Zoom:BaseUrl"] ?? "https://api.zoom.us/v2/");
             });
+            service.AddHttpClient<IUserService, UserService>(client =>
+            {
+                client.BaseAddress = new Uri(configuration["ServiceUrls:AuthService"] ?? "http://localhost:5001");
+            });
             service.AddScoped<IBookingService, BookingService.Application.Services.BookingService>();
         }
 
