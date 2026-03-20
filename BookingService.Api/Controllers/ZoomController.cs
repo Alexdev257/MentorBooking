@@ -12,7 +12,7 @@ using System.Text;
 namespace BookingService.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/zoom")]
 public class ZoomController : ControllerBase
 {
     private readonly IBookingUnitOfWork _unitOfWork;

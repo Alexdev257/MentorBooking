@@ -1,4 +1,4 @@
-﻿using MeetingService.Application.Consumers;
+using MeetingService.Application.Consumers;
 using MeetingService.Application.Interfaces.Repositories;
 using MeetingService.Infrastructure.Implements.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -41,11 +41,19 @@ namespace MeetingService.Infrastructure.DependencyInjection
 
         private static void AddDatabase(this IServiceCollection services, IConfiguration configuration)
         {
+            var connectionString =
+                configuration.GetConnectionString("meeting-db") ??
+                configuration.GetConnectionString("DefaultConnection");
+
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new InvalidOperationException(
+                    "Missing connection string. Expected 'meeting-db' (Aspire) or 'DefaultConnection' (local).");
+
             services.AddDbContext<MeetingService.Infrastructure.Persistence.MeetingApplicationDbContext>(options =>
             {
                 //options.UseMySql(configuration.GetConnectionString("DefaultConnection"),
                 //    ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection")));
-                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+                options.UseNpgsql(connectionString);
             });
 
             services.AddScoped<DbContext>(provider => provider.GetService<MeetingService.Infrastructure.Persistence.MeetingApplicationDbContext>()!);
