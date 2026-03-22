@@ -9,4 +9,7 @@ public class TranscriptUploadResponseDto
     // Kết quả transcript từ Whisper (null nếu chưa xử lý xong hoặc lỗi)
     public string? FullText { get; set; }
     public List<TranscriptSegmentDto> Segments { get; set; } = new();
+
+    /// <summary>Populated when Gemini summarization succeeds after transcribe.</summary>
+    public TranscriptSummaryDto? Summary { get; set; }
 }

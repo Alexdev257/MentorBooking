@@ -77,6 +77,25 @@ public class TranscriptController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, result);
     }
 
+    [HttpPost("{id:guid}/summarize")]
+    [AllowAnonymous] // TODO: Remove this later
+    [ProducesResponseType(typeof(CommonResponse<TranscriptSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CommonResponse<TranscriptSummaryDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(CommonResponse<TranscriptSummaryDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Summarize(Guid id, CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserIdFromClaim();
+        var result = await _transcriptService.SummarizeAsync(id, userId, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            if (result.Message == "Không tìm thấy transcript.")
+                return NotFound(result);
+            return BadRequest(result);
+        }
+        return Ok(result);
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(CommonResponse<TranscriptDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

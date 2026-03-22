@@ -1,4 +1,5 @@
 using AIService.Application.Common;
+using AIService.Application.Configuration;
 using AIService.Application.Interfaces;
 using AIService.Application.Interfaces.Services;
 using AIService.Application.Services;
@@ -17,6 +18,13 @@ namespace AIService.Infrastructure.DependencyInjection
     {
         public static IServiceCollection AddAIServiceInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
+            services.Configure<GeminiOptions>(configuration.GetSection(GeminiOptions.SectionName));
+            services.AddHttpClient<ITranscriptSummarizationService, GeminiTranscriptSummarizationService>(client =>
+            {
+                client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/");
+                client.Timeout = TimeSpan.FromMinutes(3);
+            });
+
             services.AddDatabase(configuration);
             services.AddScopedInterface();
             services.AddAutoMapper(typeof(AIServiceMappingProfile));
