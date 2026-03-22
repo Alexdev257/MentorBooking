@@ -11,4 +11,7 @@ public class TranscriptDetailDto
     public DateTime CreatedAt { get; set; }
     public DateTime? ProcessedAtUtc { get; set; }
     public string? ErrorMessage { get; set; }
+
+    /// <summary>Gemini-generated summary when available.</summary>
+    public TranscriptSummaryDto? Summary { get; set; }
 }
