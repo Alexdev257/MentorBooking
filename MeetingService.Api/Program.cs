@@ -1,4 +1,3 @@
-using Google;
 using MeetingService.Infrastructure.DependencyInjection;
 using MeetingService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
