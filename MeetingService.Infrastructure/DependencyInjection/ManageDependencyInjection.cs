@@ -27,7 +27,6 @@ namespace MeetingService.Infrastructure.DependencyInjection
         {
             services.AddDatabase(configuration);
             services.AddScopedInterface();
-            services.AddMediatRInfrastructure(configuration);
             services.AddCorsExtentions();
             services.AddJwtAuthentication(configuration);
             services.AddAuthorizationRole();
@@ -64,16 +63,6 @@ namespace MeetingService.Infrastructure.DependencyInjection
             service.AddScoped<IMeetingUnitOfWork, UnitOfWork>();
 
 
-        }
-
-        private static void AddMediatRInfrastructure(this IServiceCollection service, IConfiguration config)
-        {
-            var applicationAssembly = Assembly.Load("MeetingService.Application");
-
-            service.AddMediatR(cfg =>
-            {
-                cfg.RegisterServicesFromAssembly(applicationAssembly);
-            });
         }
 
         private static void AddCorsExtentions(this IServiceCollection service)

@@ -1,7 +1,6 @@
 using MassTransit;
 using MeetingService.Domain.Entities;
 using Shared.Contracts.Events;
-using Shared.Contracts.Interfaces;
 using MeetingService.Application.Interfaces.Repositories;
 using System;
 using System.Threading.Tasks;
@@ -13,13 +12,11 @@ namespace MeetingService.Application.Consumers
     {
         private readonly IMeetingUnitOfWork _unitOfWork;
         private readonly ILogger<BookingAcceptedConsumer> _logger;
-        private readonly IMessageProducer _messageProducer;
 
-        public BookingAcceptedConsumer(IMeetingUnitOfWork unitOfWork, ILogger<BookingAcceptedConsumer> logger, IMessageProducer messageProducer)
+        public BookingAcceptedConsumer(IMeetingUnitOfWork unitOfWork, ILogger<BookingAcceptedConsumer> logger)
         {
             _unitOfWork = unitOfWork;
             _logger = logger;
-            _messageProducer = messageProducer;
         }
 
         public async Task Consume(ConsumeContext<BookingAcceptedEvent> context)

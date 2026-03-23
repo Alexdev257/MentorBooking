@@ -1,5 +1,7 @@
 # Google Meet Automatic Recording Bot -- System Design & Implementation Guide (MentorBooking)
 
+> **Deprecated in repo:** The Node.js recorder bot (`MeetingRecordingBot`), `RecordMeetingCommand`, and `MeetingRecordingCompletedEvent` have been **removed**. Meeting status is now driven by **Zoom webhooks** + `ZoomMeetingLifecycleEvent` (see `instruction_booking_meeting.md`). This file is kept as historical design notes only.
+
 ## Overview
 
 This document explains the architecture for building a system that can automatically join and record a Google Meet session for the **MentorBooking** project without requiring a premium Google Workspace account.
