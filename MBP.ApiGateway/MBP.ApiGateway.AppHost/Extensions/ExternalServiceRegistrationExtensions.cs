@@ -34,7 +34,10 @@ public static class ExternalServiceRegistrationExtensions
 
         var emailService = builder.AddProject<Projects.EmailService_Api>("emailservice-api");
 
+        // HTTP 5000 / HTTPS 5001: cố định để FE/dev tools gọi ổn định (tránh port random mỗi lần chạy Aspire)
         var apiGateway = builder.AddProject<Projects.MBP_ApiGateway_ApiService>("apiservice")
+            .WithHttpEndpoint(port: 5000)
+            .WithHttpsEndpoint(port: 5001)
             .WithReference(authService)
             .WithReference(bookingService)
             .WithReference(meetingService)
