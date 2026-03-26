@@ -77,21 +77,44 @@ public class ZoomService : IZoomService
             _httpClient.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", token);
 
+            // var requestBody = new
+            // {
+            //     topic = booking.Topic ?? "Mentor Session",
+            //     type = 2,
+            //     start_time = booking.ScheduleStart.ToString("yyyy-MM-ddTHH:mm:ss"),
+            //     duration = (int)(booking.ScheduleEnd - booking.ScheduleStart).TotalMinutes,
+            //     timezone = "Asia/Ho_Chi_Minh",
+            //     settings = new
+            //     {
+            //         host_video = true,
+            //         participant_video = true,
+            //         join_before_host = true,
+            //         mute_upon_entry = true,
+            //         auto_recording = "cloud",
+            //         recording_encryption = true,
+            //         approval_type = 0,
+            //         registration_type = 1
+            //     }
+            // };
+
             var requestBody = new
             {
                 topic = booking.Topic ?? "Mentor Session",
                 type = 2,
-                start_time = booking.ScheduleStart.ToString("yyyy-MM-ddTHH:mm:ss"),
+                start_time = booking.ScheduleStart
+                    .ToUniversalTime()
+                    .ToString("yyyy-MM-ddTHH:mm:ssZ"),
                 duration = (int)(booking.ScheduleEnd - booking.ScheduleStart).TotalMinutes,
-                timezone = "Asia/Ho_Chi_Minh",
+
                 settings = new
                 {
                     host_video = true,
                     participant_video = true,
-                    join_before_host = true,
+                    join_before_host = false, // 🔥 FIX
                     mute_upon_entry = true,
                     auto_recording = "cloud",
-                    recording_encryption = true
+                    approval_type = 0,
+                    registration_type = 1
                 }
             };
 

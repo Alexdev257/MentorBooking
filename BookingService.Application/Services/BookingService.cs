@@ -33,9 +33,11 @@ public class BookingService : IBookingService
         _userService = userService;
     }
 
-    public async Task<CommonResponse<List<SlotResponseDto>>> GetAvailableSlotsAsync(Guid mentorId, DateTime? from, DateTime? to, CancellationToken cancellationToken = default)
+    public async Task<CommonResponse<List<SlotResponseDto>>> GetAvailableSlotsAsync(Guid mentorId, DateTime? from, DateTime? to, bool includeBooked = false, CancellationToken cancellationToken = default)
     {
-        var query = _unitOfWork.AvailabilitySlots.FindAsync(s => s.MentorId == mentorId && !s.IsBooked);
+        var query = _unitOfWork.AvailabilitySlots.FindAsync(s => s.MentorId == mentorId);
+        if (!includeBooked)
+            query = query.Where(s => !s.IsBooked);
         if (from.HasValue)
             query = query.Where(s => s.EndAt > from.Value);
         if (to.HasValue)

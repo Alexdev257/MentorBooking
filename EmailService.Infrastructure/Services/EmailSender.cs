@@ -1,4 +1,4 @@
-﻿using MailKit.Net.Smtp;
+using MailKit.Net.Smtp;
 using Microsoft.Extensions.Configuration;
 using MimeKit;
 using System;
@@ -28,6 +28,7 @@ namespace EmailService.Infrastructure.Services
             {
                 HtmlBody = body
             };
+            email.Body = builder.ToMessageBody();
 
             using var smtp = new SmtpClient();
             await smtp.ConnectAsync(_configuration["Email:Host"], int.Parse(_configuration["Email:Port"]!), false);

@@ -25,12 +25,9 @@ builder.AddServiceDefaults();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000") // URL Frontend
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials(); // B?t bu?c cho SignalR
-    });
+        policy.AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
 });
 
 builder.Services.AddReverseProxy()
@@ -86,16 +83,6 @@ builder.Services.AddSwaggerGen(c =>
 //    });
 
 //builder.Services.AddAuthorization();
-
-//builder.Services.AddCors(o =>
-//{
-//    o.AddDefaultPolicy(p =>
-//        p.AllowAnyOrigin()
-//         .AllowAnyMethod()
-//         .AllowAnyHeader());
-//});
-
-
 
 var app = builder.Build();
 

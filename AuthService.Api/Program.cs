@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using AuthService.Infrastructure.DependencyInjection;
 using AuthService.Infrastructure.Persistence;
 using FirebaseAdmin;
@@ -6,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Npgsql;
+using AuthService.Api.Swagger;
 using Shared.Infrastructure;
 using Shared.Infrastructure.Swagger;
 
@@ -19,7 +21,16 @@ public class Program
         builder.AddServiceDefaults();
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
+        builder.Services.AddSwaggerGen(options =>
+        {
+            options.MapType<IFormFile>(() => new OpenApiSchema
+            {
+                Type = "string",
+                Format = "binary",
+            });
+            options.SchemaFilter<AdminFormFileSchemaFilter>();
+            options.OperationFilter<AdminMultipartAvatarOperationFilter>();
+        });
         //builder.Services.AddSwaggerGen(options =>
         //{
         //    options.SwaggerDoc("v1", new OpenApiInfo { Title = "AuthService API", Version = "v1" });

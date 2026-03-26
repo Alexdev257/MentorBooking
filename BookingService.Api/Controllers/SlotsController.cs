@@ -28,13 +28,13 @@ public class SlotsController : ControllerBase
         return Guid.TryParse(userId, out var id) ? id : null;
     }
 
-    /// <summary>Get available (unbooked) slots of a mentor. Optional filter by date range. Anyone authenticated can view.</summary>
+    /// <summary>Get slots of a mentor. By default only unbooked (for mentee booking). Set includeBooked=true to list all (mentor dashboard).</summary>
     [HttpGet]
     [ProducesResponseType(typeof(CommonResponse<List<SlotResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetSlots(Guid mentorId, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+    public async Task<IActionResult> GetSlots(Guid mentorId, [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] bool includeBooked = false)
     {
-        var result = await _bookingService.GetAvailableSlotsAsync(mentorId, from, to);
+        var result = await _bookingService.GetAvailableSlotsAsync(mentorId, from, to, includeBooked);
         return Ok(result);
     }
 

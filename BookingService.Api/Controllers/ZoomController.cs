@@ -145,17 +145,42 @@ public class ZoomController : ControllerBase
         var meetingId = request.Payload.Object?.Id;
         var recordings = request.Payload.Object?.RecordingFiles;
 
-        if (recordings == null || recordings.Count == 0) return;
+        if (recordings == null || recordings.Count == 0)
+        {
+            _logger.LogWarning("Recording completed webhook for meeting {MeetingId} has no recording files", meetingId);
+            return;
+        }
 
-        var videoFile = recordings.FirstOrDefault(f => f.FileType == "MP4");
-        if (videoFile == null) return;
+        var videoFile = recordings.FirstOrDefault(f => string.Equals(f.FileType, "MP4", StringComparison.OrdinalIgnoreCase))
+            ?? recordings.FirstOrDefault();
+        if (videoFile == null)
+        {
+            _logger.LogWarning("Recording completed webhook for meeting {MeetingId} has no usable recording file", meetingId);
+            return;
+        }
 
         var booking = await _unitOfWork.Bookings.FindAsync(b => b.GoogleEventId == meetingId).FirstOrDefaultAsync(cancellationToken);
-        if (booking == null) return;
+        if (booking == null)
+        {
+            _logger.LogWarning("Recording completed webhook has no matching booking for meeting {MeetingId}", meetingId);
+            return;
+        }
 
-        _logger.LogInformation("Recording completed for booking {BookingId}. Link: {Link}", booking.Id, videoFile.PlayUrl);
+        // Prefer play URL for quick preview, fallback to download URL if missing.
+        var recordingUrl = !string.IsNullOrWhiteSpace(videoFile.PlayUrl)
+            ? videoFile.PlayUrl
+            : videoFile.DownloadUrl;
 
-        booking.Notes += $"\n[Zoom Recording]: {videoFile.PlayUrl}";
+        if (string.IsNullOrWhiteSpace(recordingUrl))
+        {
+            _logger.LogWarning("Recording completed for booking {BookingId} but no play/download URL in payload", booking.Id);
+            return;
+        }
+
+        _logger.LogInformation("Recording completed for booking {BookingId}. Link: {Link}", booking.Id, recordingUrl);
+
+        var currentNotes = booking.Notes ?? string.Empty;
+        booking.Notes = $"{currentNotes}\n[Zoom Recording]: {recordingUrl}".Trim();
         _unitOfWork.Bookings.UpdateAsync(booking);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }

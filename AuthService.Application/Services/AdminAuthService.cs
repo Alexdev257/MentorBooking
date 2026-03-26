@@ -188,21 +188,23 @@ public class AdminAuthService : IAdminAuthService
     {
         var response = new CommonResponse<StudentResponseDto> { IsSuccess = false };
         var student = await _unitOfWork.Students.GetByIdAsync(id);
-        await _storageService.DeleteFileFromUrlAsync(student.AvatarUrl);
         if (student == null)
         {
             response.Message = "Student not found";
             return response;
         }
-        var fileName = $"avatars/{Guid.NewGuid()}_{request.Avatar.FileName}";
 
-        using var stream = request.Avatar.OpenReadStream();
+        if (request.Avatar is { Length: > 0 } av)
+        {
+            if (!string.IsNullOrWhiteSpace(student.AvatarUrl))
+                await _storageService.DeleteFileFromUrlAsync(student.AvatarUrl);
+            var fileName = $"avatars/{Guid.NewGuid()}_{av.FileName}";
+            await using var stream = av.OpenReadStream();
+            var avatarUrl = await _storageService.UploadFileAsync(fileName, stream);
+            student.AvatarUrl = avatarUrl;
+        }
 
-        var avatarUrl = await _storageService.UploadFileAsync(
-            fileName,
-            stream);
         student.FullName = request.FullName;
-        student.AvatarUrl = avatarUrl;
         student.StudentCode = request.StudentCode;
         student.IsActive = request.IsActive;
         _unitOfWork.Students.UpdateAsync(student);
@@ -283,21 +285,23 @@ public class AdminAuthService : IAdminAuthService
     {
         var response = new CommonResponse<TeacherResponseDto> { IsSuccess = false };
         var teacher = await _unitOfWork.Teachers.GetByIdAsync(id);
-        await _storageService.DeleteFileFromUrlAsync(teacher.AvatarUrl);
         if (teacher == null)
         {
             response.Message = "Teacher not found";
             return response;
         }
-        var fileName = $"avatars/{Guid.NewGuid()}_{request.Avatar.FileName}";
 
-        using var stream = request.Avatar.OpenReadStream();
+        if (request.Avatar is { Length: > 0 } av)
+        {
+            if (!string.IsNullOrWhiteSpace(teacher.AvatarUrl))
+                await _storageService.DeleteFileFromUrlAsync(teacher.AvatarUrl);
+            var fileName = $"avatars/{Guid.NewGuid()}_{av.FileName}";
+            await using var stream = av.OpenReadStream();
+            var avatarUrl = await _storageService.UploadFileAsync(fileName, stream);
+            teacher.AvatarUrl = avatarUrl;
+        }
 
-        var avatarUrl = await _storageService.UploadFileAsync(
-            fileName,
-            stream);
         teacher.FullName = request.FullName;
-        teacher.AvatarUrl = avatarUrl;
         teacher.Department = request.Department;
         teacher.Specialization = request.Specialization;
         teacher.IsActive = request.IsActive;
