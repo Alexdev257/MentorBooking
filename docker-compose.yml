@@ -1,0 +1,178 @@
+services:
+  # ==================== DATABASE ====================
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-12345}
+      POSTGRES_DB: auth_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ==================== MESSAGE BROKER ====================
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # ==================== SERVICES ====================
+  auth-service:
+    build:
+      context: .
+      dockerfile: AuthService.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=auth_db;Username=postgres;Password=${POSTGRES_PASSWORD:-12345}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY:-xynbqiydczvhbcomoewzcldjrqnwrwii}
+      JwtSettings__Issuer: ${JWT_ISSUER:-https://mentorbooking.up.railway.app}
+      JwtSettings__Audience: ${JWT_AUDIENCE:-https://mentorbooking.up.railway.app}
+      Admin__DefaultEmail: ${ADMIN_EMAIL:-admin@localhost}
+      Admin__DefaultPassword: ${ADMIN_PASSWORD:-Admin@123}
+      Firebase__CredentialPath: ${FIREBASE_CREDENTIAL_PATH:-}
+      Firebase__BucketName: ${FIREBASE_BUCKET:-mentorbookingproject.firebasestorage.app}
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "4002:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  booking-service:
+    build:
+      context: .
+      dockerfile: BookingService.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=booking_db;Username=postgres;Password=${POSTGRES_PASSWORD:-12345}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY:-xynbqiydczvhbcomoewzcldjrqnwrwii}
+      JwtSettings__Issuer: ${JWT_ISSUER:-https://mentorbooking.up.railway.app}
+      JwtSettings__Audience: ${JWT_AUDIENCE:-https://mentorbooking.up.railway.app}
+      ServiceUrls__AuthService: http://auth-service:8080
+      Zoom__AccountId: ${ZOOM_ACCOUNT_ID:-}
+      Zoom__ClientId: ${ZOOM_CLIENT_ID:-}
+      Zoom__ClientSecret: ${ZOOM_CLIENT_SECRET:-}
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "4200:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  meeting-service:
+    build:
+      context: .
+      dockerfile: MeetingService.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=meeting_db;Username=postgres;Password=${POSTGRES_PASSWORD:-12345}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY:-xynbqiydczvhbcomoewzcldjrqnwrwii}
+      JwtSettings__Issuer: ${JWT_ISSUER:-https://mentorbooking.up.railway.app}
+      JwtSettings__Audience: ${JWT_AUDIENCE:-https://mentorbooking.up.railway.app}
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "4300:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: AIService.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=ai_db;Username=postgres;Password=${POSTGRES_PASSWORD:-12345}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY:-xynbqiydczvhbcomoewzcldjrqnwrwii}
+      JwtSettings__Issuer: ${JWT_ISSUER:-https://mentorbooking.up.railway.app}
+      JwtSettings__Audience: ${JWT_AUDIENCE:-https://mentorbooking.up.railway.app}
+      Gemini__ApiKey: ${GEMINI_API_KEY:-}
+      Gemini__Model: ${GEMINI_MODEL:-gemini-2.5-flash-lite}
+      Storage__BasePath: /app/uploads
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "4100:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  email-service:
+    build:
+      context: .
+      dockerfile: EmailService.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      Email__DisplayName: ${EMAIL_DISPLAY_NAME:-Mentor Booking Support}
+      Email__From: ${EMAIL_FROM:-}
+      Email__Host: ${EMAIL_HOST:-smtp.gmail.com}
+      Email__Port: ${EMAIL_PORT:-587}
+      Email__Username: ${EMAIL_USERNAME:-}
+      Email__Password: ${EMAIL_PASSWORD:-}
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Username: ${RABBITMQ_USER:-guest}
+      RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "4400:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: MBP.ApiGateway/MBP.ApiGateway.ApiService/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ReverseProxy__Clusters__auth-cluster__Destinations__destination1__Address: http://auth-service:8080
+      ReverseProxy__Clusters__booking-cluster__Destinations__destination1__Address: http://booking-service:8080
+      ReverseProxy__Clusters__meeting-cluster__Destinations__destination1__Address: http://meeting-service:8080
+      ReverseProxy__Clusters__ai-cluster__Destinations__destination1__Address: http://ai-service:8080
+    ports:
+      - "5000:8080"
+    depends_on:
+      - auth-service
+      - booking-service
+      - meeting-service
+      - ai-service
+      - email-service
+
+volumes:
+  postgres_data:

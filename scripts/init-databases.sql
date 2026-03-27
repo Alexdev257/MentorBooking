@@ -1,0 +1,3 @@
+CREATE DATABASE booking_db;
+CREATE DATABASE meeting_db;
+CREATE DATABASE ai_db;
