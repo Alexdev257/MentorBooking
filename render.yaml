@@ -42,8 +42,8 @@ services:
         sync: false
       - key: Admin__DefaultPassword
         sync: false
-      - key: Firebase__CredentialPath
-        value: ""
+      - key: Firebase__CredentialJson
+        sync: false
       - key: Firebase__BucketName
         value: mentorbookingproject.firebasestorage.app
 
