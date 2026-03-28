@@ -21,25 +21,31 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
-using (var scope = app.Services.CreateScope())
+try
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<BookingApplicationDbContext>();
     var conn = db.Database.GetConnectionString();
-    Console.WriteLine($"?? Connection string: {conn}");
+    Console.WriteLine($"Connection string: {conn}");
 
-    var pending = db.Database.GetPendingMigrations().ToList();
-    Console.WriteLine($"?? Pending migrations: {pending.Count}");
+    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+    var pending = (await db.Database.GetPendingMigrationsAsync(cts.Token)).ToList();
+    Console.WriteLine($"Pending migrations: {pending.Count}");
 
     if (pending.Any())
     {
-        Console.WriteLine("?? Running database migrations...");
-        db.Database.Migrate();
-        Console.WriteLine("? Migration completed.");
+        Console.WriteLine("Running database migrations...");
+        await db.Database.MigrateAsync(cts.Token);
+        Console.WriteLine("Migration completed.");
     }
     else
     {
-        Console.WriteLine("? No pending migrations.");
+        Console.WriteLine("No pending migrations.");
     }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[WARNING] Migration failed, app will start anyway: {ex.Message}");
 }
 
 app.UseSharedInfrastructure();

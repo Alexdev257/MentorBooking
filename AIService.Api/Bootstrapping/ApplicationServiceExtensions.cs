@@ -39,10 +39,26 @@ public static class ApplicationServiceExtensions
 
     private static void RunMigrationsIfNeeded(WebApplication app)
     {
-        using var scope = app.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AIApplicationDbContext>();
-        var pending = db.Database.GetPendingMigrations().ToList();
-        if (pending.Count > 0)
-            db.Database.Migrate();
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AIApplicationDbContext>();
+            var conn = db.Database.GetConnectionString();
+            Console.WriteLine($"Connection string: {conn}");
+
+            var pending = db.Database.GetPendingMigrations().ToList();
+            Console.WriteLine($"Pending migrations: {pending.Count}");
+
+            if (pending.Count > 0)
+            {
+                Console.WriteLine("Running database migrations...");
+                db.Database.Migrate();
+                Console.WriteLine("Migration completed.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WARNING] Migration failed, app will start anyway: {ex.Message}");
+        }
     }
 }
