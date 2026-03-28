@@ -30,6 +30,10 @@ services:
     dockerContext: .
     envVars:
       - fromGroup: shared-config
+      - key: ConnectionStrings__auth-db
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: mentorbooking-db
@@ -52,6 +56,10 @@ services:
     dockerContext: .
     envVars:
       - fromGroup: shared-config
+      - key: ConnectionStrings__booking-db
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: mentorbooking-db
@@ -77,6 +85,10 @@ services:
     dockerContext: .
     envVars:
       - fromGroup: shared-config
+      - key: ConnectionStrings__meeting-db
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: mentorbooking-db
@@ -91,6 +103,10 @@ services:
     dockerContext: .
     envVars:
       - fromGroup: shared-config
+      - key: ConnectionStrings__ai-db
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
       - key: ConnectionStrings__DefaultConnection
         fromDatabase:
           name: mentorbooking-db
