@@ -58,6 +58,8 @@ namespace AuthService.Infrastructure.DependencyInjection
         throw new InvalidOperationException(
             "Missing connection string. Expected 'auth-db' (Aspire) or 'DefaultConnection' (local).");
 
+    connectionString = Shared.Infrastructure.Persistence.ConnectionStringHelper.Normalize(connectionString);
+
     services.AddDbContext<AuthService.Infrastructure.Persistence.ApplicationDbContext>((serviceProvider, options) =>
     {
         options.UseNpgsql(connectionString);

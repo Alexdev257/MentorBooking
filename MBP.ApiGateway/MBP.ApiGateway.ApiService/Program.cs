@@ -86,20 +86,16 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        // Khai báo Endpoint ?? UI bi?t load file JSON nào
-        options.SwaggerEndpoint("/auth-service/swagger/v1/swagger.json", "Auth Service API");
-        options.SwaggerEndpoint("/ai-service/swagger/v1/swagger.json", "AI Service API");
-        options.SwaggerEndpoint("/booking-service/swagger/v1/swagger.json", "Booking Service API");
-        options.SwaggerEndpoint("/meeting-service/swagger/v1/swagger.json", "Meeting Service API");
+    options.SwaggerEndpoint("/auth-service/swagger/v1/swagger.json", "Auth Service API");
+    options.SwaggerEndpoint("/ai-service/swagger/v1/swagger.json", "AI Service API");
+    options.SwaggerEndpoint("/booking-service/swagger/v1/swagger.json", "Booking Service API");
+    options.SwaggerEndpoint("/meeting-service/swagger/v1/swagger.json", "Meeting Service API");
 
-        options.ConfigObject.AdditionalItems["syntaxHighlight"] = false;
-    });
-}
+    options.ConfigObject.AdditionalItems["syntaxHighlight"] = false;
+});
 
 
 //app.UseAuthentication();

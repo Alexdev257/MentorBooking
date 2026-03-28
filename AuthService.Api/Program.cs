@@ -58,44 +58,60 @@ public class Program
         builder.Services.AddSharedInfrastructure(builder.Configuration);
         builder.Services.AddAuthServiceInfrastructure(builder.Configuration);
 
-        // Firebase Admin SDK - chỉ khởi tạo nếu file credential tồn tại
+        var firebaseCredJson = builder.Configuration["Firebase:CredentialJson"];
         var firebaseCredPath = builder.Configuration["Firebase:CredentialPath"]
                                ?? "mentorbookingproject-firebase-adminsdk-fbsvc-f8160d02d1.json";
-        if (File.Exists(firebaseCredPath))
+
+        if (!string.IsNullOrWhiteSpace(firebaseCredJson))
+        {
+            FirebaseApp.Create(new AppOptions
+            {
+                Credential = GoogleCredential.FromJson(firebaseCredJson)
+            });
+            Console.WriteLine("Firebase Admin SDK initialized from environment variable.");
+        }
+        else if (File.Exists(firebaseCredPath))
         {
             FirebaseApp.Create(new AppOptions
             {
                 Credential = GoogleCredential.FromFile(firebaseCredPath)
             });
+            Console.WriteLine("Firebase Admin SDK initialized from file.");
         }
         else
         {
-            Console.WriteLine($"[WARNING] Firebase credential file not found: '{firebaseCredPath}'. Firebase Admin SDK disabled. Download from Firebase Console and place in AuthService.Api project folder.");
+            Console.WriteLine($"[WARNING] Firebase credentials not found. Set Firebase__CredentialJson env var or place file at '{firebaseCredPath}'.");
         }
 
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
 
         var app = builder.Build();
-        using (var scope = app.Services.CreateScope())
+        try
         {
+            using var scope = app.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var conn = db.Database.GetConnectionString();
-            Console.WriteLine($"?? Connection string: {conn}");
+            Console.WriteLine($"Connection string: {conn}");
 
-            var pending = db.Database.GetPendingMigrations().ToList();
-            Console.WriteLine($"?? Pending migrations: {pending.Count}");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var pending = (await db.Database.GetPendingMigrationsAsync(cts.Token)).ToList();
+            Console.WriteLine($"Pending migrations: {pending.Count}");
 
             if (pending.Any())
             {
-                Console.WriteLine("?? Running database migrations...");
-                db.Database.Migrate();
-                Console.WriteLine("? Migration completed.");
+                Console.WriteLine("Running database migrations...");
+                await db.Database.MigrateAsync(cts.Token);
+                Console.WriteLine("Migration completed.");
             }
             else
             {
-                Console.WriteLine("? No pending migrations.");
+                Console.WriteLine("No pending migrations.");
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WARNING] Migration failed, app will start anyway: {ex.Message}");
         }
 
         try
@@ -114,15 +130,16 @@ public class Program
         app.UseSharedInfrastructure();
         app.MapDefaultEndpoints();
 
-        // Configure the HTTP request pipeline.
+        app.UseSwagger();
+
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
-            app.UseSwagger();
             app.UseSwaggerUI();
         }
 
-        app.UseHttpsRedirection();
+        if (app.Environment.IsDevelopment())
+            app.UseHttpsRedirection();
         app.UseCors("AllowAll");
 
         app.UseAuthentication();
