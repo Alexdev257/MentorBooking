@@ -1,5 +1,7 @@
 using MeetingService.Application.Consumers;
 using MeetingService.Application.Interfaces.Repositories;
+using MeetingService.Application.Interfaces.Services;
+using MeetingService.Application.Services;
 using MeetingService.Infrastructure.Implements.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
@@ -61,8 +63,7 @@ namespace MeetingService.Infrastructure.DependencyInjection
         private static void AddScopedInterface(this IServiceCollection service)
         {
             service.AddScoped<IMeetingUnitOfWork, UnitOfWork>();
-
-
+            service.AddScoped<IMeetingService, MeetingAppService>();
         }
 
         private static void AddCorsExtentions(this IServiceCollection service)

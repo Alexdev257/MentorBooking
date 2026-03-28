@@ -22,8 +22,4 @@
 		<ProjectReference Include="..\MBP.ApiGateway\MBP.ApiGateway.ServiceDefaults\MBP.ApiGateway.ServiceDefaults.csproj" />
 	</ItemGroup>
 
-	<ItemGroup>
-	  <Folder Include="Controllers\" />
-	</ItemGroup>
-
 </Project>

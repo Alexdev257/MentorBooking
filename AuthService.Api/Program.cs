@@ -60,7 +60,7 @@ public class Program
 
         var firebaseCredJson = builder.Configuration["Firebase:CredentialJson"];
         var firebaseCredPath = builder.Configuration["Firebase:CredentialPath"]
-                               ?? "mentorbookingproject-firebase-adminsdk-fbsvc-f8160d02d1.json";
+                               ?? "mentorbookingproject-firebase-adminsdk-fbsvc-a7290ef766.json";
 
         if (!string.IsNullOrWhiteSpace(firebaseCredJson))
         {

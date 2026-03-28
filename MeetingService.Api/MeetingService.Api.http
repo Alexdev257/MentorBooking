@@ -1,6 +1,30 @@
-@MeetingService.Api_HostAddress = http://localhost:5164
+@MeetingService.Api_HostAddress = https://localhost:4300
 
-GET {{MeetingService.Api_HostAddress}}/weatherforecast/
+### Meetings (requires Bearer token)
+GET {{MeetingService.Api_HostAddress}}/api/meeting/meetings?pageNumber=1&pageSize=10
+Accept: application/json
+
+###
+GET {{MeetingService.Api_HostAddress}}/api/meeting/meetings?status=0&pageNumber=1&pageSize=10
+Accept: application/json
+
+###
+@meetingId = 00000000-0000-0000-0000-000000000000
+GET {{MeetingService.Api_HostAddress}}/api/meeting/meetings/{{meetingId}}
+Accept: application/json
+
+###
+@bookingId = 00000000-0000-0000-0000-000000000000
+GET {{MeetingService.Api_HostAddress}}/api/meeting/by-booking/{{bookingId}}
+Accept: application/json
+
+###
+GET {{MeetingService.Api_HostAddress}}/api/meeting/meetings/{{meetingId}}/recordings
+Accept: application/json
+
+###
+@recordingId = 00000000-0000-0000-0000-000000000000
+GET {{MeetingService.Api_HostAddress}}/api/meeting/recordings/{{recordingId}}
 Accept: application/json
 
 ###
