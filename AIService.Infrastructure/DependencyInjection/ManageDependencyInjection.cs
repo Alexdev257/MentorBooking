@@ -43,6 +43,8 @@ namespace AIService.Infrastructure.DependencyInjection
                 throw new InvalidOperationException(
                     "Missing connection string. Expected 'ai-db' (Aspire AppHost) or 'DefaultConnection' (local appsettings).");
 
+            connectionString = Shared.Infrastructure.Persistence.ConnectionStringHelper.Normalize(connectionString);
+
             services.AddDbContext<AIService.Infrastructure.Persistence.AIApplicationDbContext>(options =>
             {
                 options.UseNpgsql(connectionString);

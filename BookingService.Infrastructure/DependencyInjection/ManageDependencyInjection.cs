@@ -68,6 +68,8 @@ namespace BookingService.Infrastructure.DependencyInjection
                 throw new InvalidOperationException(
                     "Missing connection string. Expected 'booking-db' (Aspire) or 'DefaultConnection' (local).");
 
+            connectionString = Shared.Infrastructure.Persistence.ConnectionStringHelper.Normalize(connectionString);
+
             services.AddDbContext<BookingService.Infrastructure.Persistence.BookingApplicationDbContext>((serviceProvider, options) =>
             {
                 options.UseNpgsql(connectionString);

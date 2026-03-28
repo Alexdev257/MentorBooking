@@ -48,10 +48,10 @@ namespace MeetingService.Infrastructure.DependencyInjection
                 throw new InvalidOperationException(
                     "Missing connection string. Expected 'meeting-db' (Aspire) or 'DefaultConnection' (local).");
 
+            connectionString = Shared.Infrastructure.Persistence.ConnectionStringHelper.Normalize(connectionString);
+
             services.AddDbContext<MeetingService.Infrastructure.Persistence.MeetingApplicationDbContext>(options =>
             {
-                //options.UseMySql(configuration.GetConnectionString("DefaultConnection"),
-                //    ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection")));
                 options.UseNpgsql(connectionString);
             });
 
