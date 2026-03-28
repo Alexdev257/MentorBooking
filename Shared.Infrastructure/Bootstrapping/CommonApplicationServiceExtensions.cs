@@ -40,9 +40,10 @@ public static class CommonApplicationServiceExtensions
 
     public static WebApplication UseCommonService(this WebApplication app)
     {
+        app.UseSwagger();
+
         if (app.Environment.IsDevelopment())
         {
-            app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
                 c.DocumentTitle = $"{app.Environment.ApplicationName} - API";

@@ -120,15 +120,16 @@ public class Program
         app.UseSharedInfrastructure();
         app.MapDefaultEndpoints();
 
-        // Configure the HTTP request pipeline.
+        app.UseSwagger();
+
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
-            app.UseSwagger();
             app.UseSwaggerUI();
         }
 
-        app.UseHttpsRedirection();
+        if (app.Environment.IsDevelopment())
+            app.UseHttpsRedirection();
         app.UseCors("AllowAll");
 
         app.UseAuthentication();
