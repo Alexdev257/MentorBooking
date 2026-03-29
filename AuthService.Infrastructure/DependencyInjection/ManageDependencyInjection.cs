@@ -145,41 +145,41 @@ namespace AuthService.Infrastructure.DependencyInjection
                                 context.Response.Headers.Add("Token-Expired", "true");
                             return Task.CompletedTask;
                         },
-                        // 1. X? lý khi ch?a ??ng nh?p ho?c Token sai (401 Unauthorized)
+                        // 1. X? lÃ½ khi ch?a ??ng nh?p ho?c Token sai (401 Unauthorized)
                         OnChallenge = context =>
                         {
-                            // Ng?n ch?n hành vi m?c ??nh (tr? v? r?ng)
+                            // Ng?n ch?n hÃ nh vi m?c ??nh (tr? v? r?ng)
                             context.HandleResponse();
 
                             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                             context.Response.ContentType = "application/json";
 
-                            string errorMessage = "B?n ch?a ??ng nh?p. Vui lòng cung c?p Token h?p l?.";
+                            string errorMessage = "B?n ch?a ??ng nh?p. Vui lÃ²ng cung c?p Token h?p l?.";
                             string errorCode = "UNAUTHORIZED";
 
-                            // 2. Phân tích chi ti?t nguyên nhân l?i
+                            // 2. PhÃ¢n tÃ­ch chi ti?t nguyÃªn nhÃ¢n l?i
                             if (context.AuthenticateFailure != null)
                             {
                                 if (context.AuthenticateFailure is SecurityTokenExpiredException)
                                 {
-                                    errorMessage = "Phiên ??ng nh?p ?ã h?t h?n. Vui lòng ??ng nh?p l?i ho?c làm m?i Token.";
+                                    errorMessage = "PhiÃªn ??ng nh?p ?Ã£ h?t h?n. Vui lÃ²ng ??ng nh?p l?i ho?c lÃ m m?i Token.";
                                     errorCode = "TOKEN_EXPIRED";
                                 }
                                 else if (context.AuthenticateFailure is SecurityTokenInvalidSignatureException)
                                 {
-                                    errorMessage = "Token không h?p l? (Ch? ký b? sai).";
+                                    errorMessage = "Token khÃ´ng h?p l? (Ch? kÃ½ b? sai).";
                                     errorCode = "INVALID_SIGNATURE";
                                 }
                                 else
                                 {
-                                    errorMessage = "Token không h?p l?. Vui lòng ??ng nh?p l?i.";
+                                    errorMessage = "Token khÃ´ng h?p l?. Vui lÃ²ng ??ng nh?p l?i.";
                                     errorCode = "INVALID_TOKEN";
                                 }
                             }
-                            // Tr??ng h?p không có header Authorization
+                            // Tr??ng h?p khÃ´ng cÃ³ header Authorization
                             else if (!context.Request.Headers.ContainsKey("Authorization"))
                             {
-                                errorMessage = "Không tìm th?y thông tin xác th?c (Missing Authorization Header).";
+                                errorMessage = "KhÃ´ng tÃ¬m th?y thÃ´ng tin xÃ¡c th?c (Missing Authorization Header).";
                                 errorCode = "MISSING_TOKEN";
                             }
 
@@ -187,13 +187,13 @@ namespace AuthService.Infrastructure.DependencyInjection
                             {
                                 IsSuccess = false,
                                 Message = errorMessage,
-                                Data = new { ErrorCode = errorCode } // G?i kèm mã l?i ?? Frontend d? b?t
+                                Data = new { ErrorCode = errorCode } // G?i kÃ¨m mÃ£ l?i ?? Frontend d? b?t
                             };
 
                             return context.Response.WriteAsync(JsonSerializer.Serialize(response));
                         },
 
-                        // 2. X? lý khi ?ã ??ng nh?p nh?ng không ?? quy?n (403 Forbidden)
+                        // 2. X? lÃ½ khi ?Ã£ ??ng nh?p nh?ng khÃ´ng ?? quy?n (403 Forbidden)
                         OnForbidden = context =>
                         {
                             context.Response.StatusCode = StatusCodes.Status403Forbidden;
