@@ -59,8 +59,17 @@ public class Program
         builder.Services.AddAuthServiceInfrastructure(builder.Configuration);
 
         var firebaseCredJson = builder.Configuration["Firebase:CredentialJson"];
-        var firebaseCredPath = builder.Configuration["Firebase:CredentialPath"]
-                               ?? "mentorbookingproject-firebase-adminsdk-fbsvc-a7290ef766.json";
+        var firebaseCredB64 = builder.Configuration["Firebase:CredentialJsonBase64"];
+        if (string.IsNullOrWhiteSpace(firebaseCredJson) && !string.IsNullOrWhiteSpace(firebaseCredB64))
+        {
+            var bytes = Convert.FromBase64String(firebaseCredB64.Trim());
+            firebaseCredJson = System.Text.Encoding.UTF8.GetString(bytes);
+        }
+
+        var configuredCredPath = builder.Configuration["Firebase:CredentialPath"];
+        var firebaseCredPath = string.IsNullOrWhiteSpace(configuredCredPath)
+            ? "mentorbookingproject-firebase-adminsdk-fbsvc-a7290ef766.json"
+            : configuredCredPath!;
 
         if (!string.IsNullOrWhiteSpace(firebaseCredJson))
         {
@@ -68,7 +77,7 @@ public class Program
             {
                 Credential = GoogleCredential.FromJson(firebaseCredJson)
             });
-            Console.WriteLine("Firebase Admin SDK initialized from environment variable.");
+            Console.WriteLine("Firebase Admin SDK initialized from CredentialJson / CredentialJsonBase64.");
         }
         else if (File.Exists(firebaseCredPath))
         {
@@ -80,7 +89,7 @@ public class Program
         }
         else
         {
-            Console.WriteLine($"[WARNING] Firebase credentials not found. Set Firebase__CredentialJson env var or place file at '{firebaseCredPath}'.");
+            Console.WriteLine($"[WARNING] Firebase credentials not found. Set Firebase__CredentialJson or Firebase__CredentialJsonBase64 (Render), or place file at '{firebaseCredPath}'.");
         }
 
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
