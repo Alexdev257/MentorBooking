@@ -57,6 +57,15 @@ public class ZoomRecordingFile
 
     [JsonPropertyName("play_url")]
     public string? PlayUrl { get; set; }
+
+    [JsonPropertyName("file_size")]
+    public long? FileSize { get; set; }
+
+    [JsonPropertyName("recording_start")]
+    public DateTime? RecordingStart { get; set; }
+
+    [JsonPropertyName("recording_end")]
+    public DateTime? RecordingEnd { get; set; }
 }
 
 public class ZoomCrcResponse

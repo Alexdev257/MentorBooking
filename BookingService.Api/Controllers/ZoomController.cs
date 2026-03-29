@@ -183,6 +183,34 @@ public class ZoomController : ControllerBase
         booking.Notes = $"{currentNotes}\n[Zoom Recording]: {recordingUrl}".Trim();
         _unitOfWork.Bookings.UpdateAsync(booking);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var contentType = MapZoomFileTypeToContentType(videoFile.FileType);
+        int? durationSeconds = null;
+        if (videoFile.RecordingEnd is { } end && videoFile.RecordingStart is { } start && end > start)
+            durationSeconds = (int)(end - start).TotalSeconds;
+
+        await _messageProducer.PublishAsync(
+            new ZoomRecordingCompletedEvent(
+                booking.Id,
+                recordingUrl.Trim(),
+                contentType,
+                durationSeconds,
+                videoFile.FileSize),
+            cancellationToken);
+    }
+
+    private static string? MapZoomFileTypeToContentType(string? fileType)
+    {
+        if (string.IsNullOrWhiteSpace(fileType))
+            return null;
+        return fileType.Trim().ToUpperInvariant() switch
+        {
+            "MP4" => "video/mp4",
+            "M4A" => "audio/mp4",
+            "MP3" => "audio/mpeg",
+            "CHAT" => "text/plain",
+            _ => null
+        };
     }
 
     private static string HMACSHA256Hash(string plainToken, string secretToken)
