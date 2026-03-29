@@ -181,23 +181,33 @@ namespace AuthService.Infrastructure.Implements.Services
                     fileStream
                 );
 
-                // 5️ Set public
-                storageObject.Acl = new List<ObjectAccessControl>
-        {
-            new ObjectAccessControl
-            {
-                Entity = "allUsers",
-                Role = "READER"
-            }
-        };
+                // Legacy object ACL (allUsers) often fails on Firebase / GCS buckets with
+                // "uniform bucket-level access". Upload already succeeded — skip ACL in that case.
+                try
+                {
+                    storageObject.Acl = new List<ObjectAccessControl>
+                    {
+                        new ObjectAccessControl
+                        {
+                            Entity = "allUsers",
+                            Role = "READER"
+                        }
+                    };
+                    await _storageClient!.UpdateObjectAsync(storageObject);
+                }
+                catch (Exception aclEx)
+                {
+                    Console.WriteLine(
+                        "[FirebaseService] Object ACL update skipped or failed (uniform bucket-level access is common on Firebase). " +
+                        "Use bucket IAM (e.g. allUsers → Storage Object Viewer) or signed URLs if the URL must be public. " +
+                        aclEx.Message);
+                }
 
-                await _storageClient!.UpdateObjectAsync(storageObject);
-
-                // 6️ Trả URL chuẩn Firebase (KHÔNG bị download)
                 return $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{Uri.EscapeDataString(objectName)}?alt=media";
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[FirebaseService] Upload failed (see inner exception):{Environment.NewLine}{ex}");
                 throw new InvalidOperationException("Error uploading file to Firebase Storage.", ex);
             }
         }
