@@ -136,12 +136,11 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
-      Email__DisplayName: ${EMAIL_DISPLAY_NAME:-Mentor Booking Support}
-      Email__From: ${EMAIL_FROM:-}
-      Email__Host: ${EMAIL_HOST:-smtp.gmail.com}
-      Email__Port: ${EMAIL_PORT:-587}
-      Email__Username: ${EMAIL_USERNAME:-}
-      Email__Password: ${EMAIL_PASSWORD:-}
+      Mailjet__ApiKey: ${MAILJET_API_KEY:-}
+      Mailjet__ApiSecret: ${MAILJET_API_SECRET:-}
+      Mailjet__FromEmail: ${MAILJET_FROM_EMAIL:-}
+      Mailjet__DisplayName: ${MAILJET_DISPLAY_NAME:-Mentor Booking Project}
+      Mailjet__SendEndpoint: ${MAILJET_SEND_ENDPOINT:-https://api.mailjet.com/v3.1/send}
       RabbitMQ__Host: ${RABBITMQ_HOST:-armadillo-01.rmq.cloudamqp.com}
       RabbitMQ__VirtualHost: ${RABBITMQ_VHOST:-hnlprtvu}
       RabbitMQ__Username: ${RABBITMQ_USER:-hnlprtvu}
