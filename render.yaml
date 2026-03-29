@@ -145,18 +145,16 @@ services:
     dockerContext: .
     envVars:
       - fromGroup: shared-config
-      - key: Email__DisplayName
-        value: Mentor Booking Support
-      - key: Email__From
+      - key: Mailjet__ApiKey
         sync: false
-      - key: Email__Host
-        value: smtp.gmail.com
-      - key: Email__Port
-        value: "587"
-      - key: Email__Username
+      - key: Mailjet__ApiSecret
         sync: false
-      - key: Email__Password
+      - key: Mailjet__FromEmail
         sync: false
+      - key: Mailjet__DisplayName
+        value: Mentor Booking Project
+      - key: Mailjet__SendEndpoint
+        value: https://api.mailjet.com/v3.1/send
 
   # ==================== API GATEWAY ====================
   - type: web
