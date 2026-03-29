@@ -367,3 +367,6 @@ mentorbookingproject-firebase-adminsdk-fbsvc-a7290ef766.json
 *firebase-adminsdk*.json
 *firebase*.json
 !appsettings*.json
+
+# Production env file (contains secrets)
+.env.production
