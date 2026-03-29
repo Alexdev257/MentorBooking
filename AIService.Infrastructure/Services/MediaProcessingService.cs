@@ -2,6 +2,7 @@ using AIService.Application.Interfaces;
 using FFMpegCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Net.Http;
 
@@ -14,7 +15,6 @@ public class FfmpegMediaProcessingService : IMediaProcessingService
     private static bool _ffOptionsConfigured;
     private static readonly SemaphoreSlim _initLock = new(1, 1);
 
-    // Lưu FFmpeg ở AppData để không bị xoá khi dotnet clean
     private static readonly string _defaultBinaryFolder =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                      "MentorBooking", "ffmpeg");
@@ -34,33 +34,44 @@ public class FfmpegMediaProcessingService : IMediaProcessingService
         {
             if (_ffOptionsConfigured) return;
 
-            var binaryFolder = _configuration["FFmpeg:BinaryFolder"];
+            var configFolder = _configuration["FFmpeg:BinaryFolder"];
 
-            if (string.IsNullOrWhiteSpace(binaryFolder))
+            if (!string.IsNullOrWhiteSpace(configFolder))
             {
-                var detected = DetectFFmpegFolder();
-                binaryFolder = detected ?? _defaultBinaryFolder;
+                GlobalFFOptions.Configure(opts => opts.BinaryFolder = configFolder);
+                _logger.LogInformation("FFmpeg BinaryFolder (from config) = '{Folder}'.", configFolder);
+                _ffOptionsConfigured = true;
+                return;
             }
 
+            if (IsFFmpegOnPath())
+            {
+                _logger.LogInformation("FFmpeg found on system PATH.");
+                _ffOptionsConfigured = true;
+                return;
+            }
+
+            var binaryFolder = _defaultBinaryFolder;
             var ffmpegExe = Path.Combine(binaryFolder,
                 OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg");
 
             if (!File.Exists(ffmpegExe))
             {
-                _logger.LogInformation(
-                    "FFmpeg không tìm thấy tại '{Folder}'. Đang tự động tải về (lần đầu ~30s)...", binaryFolder);
-
-                if (!Directory.Exists(binaryFolder))
-                    Directory.CreateDirectory(binaryFolder);
-
                 if (OperatingSystem.IsWindows())
+                {
+                    _logger.LogInformation(
+                        "FFmpeg not found. Auto-downloading (~30s)...");
+                    if (!Directory.Exists(binaryFolder))
+                        Directory.CreateDirectory(binaryFolder);
                     await DownloadFFmpegWindowsAsync(binaryFolder, _logger, cancellationToken);
+                    _logger.LogInformation("FFmpeg downloaded to '{Folder}'.", binaryFolder);
+                }
                 else
+                {
                     throw new InvalidOperationException(
-                        $"FFmpeg không tìm thấy tại '{ffmpegExe}'. " +
-                        "Hãy cài đặt FFmpeg (apt-get install ffmpeg) và set 'FFmpeg:BinaryFolder' trong appsettings hoặc env var FFmpeg__BinaryFolder.");
-
-                _logger.LogInformation("FFmpeg đã tải xong tại '{Folder}'.", binaryFolder);
+                        "FFmpeg không tìm thấy trên hệ thống. " +
+                        "Hãy cài đặt FFmpeg (apt-get install -y ffmpeg) hoặc set env var FFmpeg__BinaryFolder.");
+                }
             }
 
             GlobalFFOptions.Configure(opts => opts.BinaryFolder = binaryFolder);
@@ -73,32 +84,27 @@ public class FfmpegMediaProcessingService : IMediaProcessingService
         }
     }
 
-    private static string? DetectFFmpegFolder()
+    private static bool IsFFmpegOnPath()
     {
-        var exeName = OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg";
-
-        string[] commonPaths = OperatingSystem.IsWindows()
-            ? [@"C:\ffmpeg\bin", @"C:\Program Files\ffmpeg\bin"]
-            : ["/usr/bin", "/usr/local/bin", "/snap/bin"];
-
-        foreach (var dir in commonPaths)
+        try
         {
-            if (File.Exists(Path.Combine(dir, exeName)))
-                return dir;
-        }
-
-        var pathEnv = Environment.GetEnvironmentVariable("PATH");
-        if (!string.IsNullOrEmpty(pathEnv))
-        {
-            var sep = OperatingSystem.IsWindows() ? ';' : ':';
-            foreach (var dir in pathEnv.Split(sep, StringSplitOptions.RemoveEmptyEntries))
+            using var process = Process.Start(new ProcessStartInfo
             {
-                if (File.Exists(Path.Combine(dir, exeName)))
-                    return dir;
-            }
+                FileName = "ffmpeg",
+                Arguments = "-version",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            });
+            if (process == null) return false;
+            process.WaitForExit(5000);
+            return process.ExitCode == 0;
         }
-
-        return null;
+        catch
+        {
+            return false;
+        }
     }
 
     private static async Task DownloadFFmpegWindowsAsync(string folder, ILogger logger, CancellationToken ct)
