@@ -242,11 +242,23 @@ public class TranscriptService : ITranscriptService
             return response;
         }
 
-        var sum = await _summarization.SummarizeAsync(text, entity.Title, cancellationToken);
+        TranscriptSummaryDto? sum;
+        try
+        {
+            sum = await _summarization.SummarizeAsync(text, entity.Title, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Summarization failed for transcript {TranscriptId}", transcriptId);
+            response.IsSuccess = false;
+            response.Message = $"Tóm tắt thất bại: {ex.Message}";
+            return response;
+        }
+
         if (sum == null)
         {
             response.IsSuccess = false;
-            response.Message = "Tóm tắt thất bại (Gemini không trả kết quả hợp lệ).";
+            response.Message = "Tóm tắt thất bại (Gemini không trả kết quả).";
             return response;
         }
 

@@ -60,17 +60,29 @@ public class GeminiTranscriptSummarizationService : ITranscriptSummarizationServ
         {
             response = await _httpClient.SendAsync(request, cancellationToken);
         }
-        catch (Exception ex)
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException || !cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "Gemini request timed out.");
+            throw new InvalidOperationException("Gemini request timed out (limit: 3 minutes). The transcript may be too long.", ex);
+        }
+        catch (HttpRequestException ex)
         {
             _logger.LogWarning(ex, "Gemini request failed (network).");
-            return null;
+            throw new InvalidOperationException($"Cannot connect to Gemini API: {ex.Message}", ex);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Gemini request failed (network).");
+            throw new InvalidOperationException($"Gemini request failed: {ex.Message}", ex);
         }
 
         var raw = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning("Gemini API error {Status}: {Body}", (int)response.StatusCode, raw.Length > 500 ? raw[..500] : raw);
-            return null;
+
+            var errorDetail = ExtractGeminiErrorMessage(raw) ?? $"HTTP {(int)response.StatusCode}";
+            throw new InvalidOperationException($"Gemini API error: {errorDetail}");
         }
 
         try
@@ -79,21 +91,29 @@ public class GeminiTranscriptSummarizationService : ITranscriptSummarizationServ
             if (!doc.RootElement.TryGetProperty("candidates", out var candidates) ||
                 candidates.GetArrayLength() == 0)
             {
+                var reason = ExtractBlockReason(raw);
                 _logger.LogWarning("Gemini response has no candidates: {Body}", raw.Length > 400 ? raw[..400] : raw);
-                return null;
+                throw new InvalidOperationException(
+                    string.IsNullOrEmpty(reason)
+                        ? "Gemini returned no candidates (empty response)."
+                        : $"Gemini blocked the request: {reason}");
             }
 
             var first = candidates[0];
             if (!first.TryGetProperty("content", out var content) ||
                 !content.TryGetProperty("parts", out var parts) ||
                 parts.GetArrayLength() == 0)
-                return null;
+            {
+                var finishReason = first.TryGetProperty("finishReason", out var fr) ? fr.GetString() : null;
+                throw new InvalidOperationException(
+                    $"Gemini candidate has no content (finishReason: {finishReason ?? "unknown"}).");
+            }
 
             if (!parts[0].TryGetProperty("text", out var textEl))
-                return null;
+                throw new InvalidOperationException("Gemini response part has no text field.");
             var textPart = textEl.GetString();
             if (string.IsNullOrWhiteSpace(textPart))
-                return null;
+                throw new InvalidOperationException("Gemini returned an empty text response.");
 
             using var summaryDoc = JsonDocument.Parse(textPart);
             var root = summaryDoc.RootElement;
@@ -115,10 +135,16 @@ public class GeminiTranscriptSummarizationService : ITranscriptSummarizationServ
                 GeneratedAtUtc = DateTime.UtcNow
             };
         }
+        catch (InvalidOperationException) { throw; }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse Gemini JSON response. Raw: {Raw}", raw.Length > 300 ? raw[..300] : raw);
+            throw new InvalidOperationException($"Failed to parse Gemini response as JSON: {ex.Message}", ex);
+        }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to parse Gemini summarization response.");
-            return null;
+            throw new InvalidOperationException($"Unexpected error parsing Gemini response: {ex.Message}", ex);
         }
     }
 
@@ -137,6 +163,32 @@ public class GeminiTranscriptSummarizationService : ITranscriptSummarizationServ
             }
         }
         return list;
+    }
+
+    private static string? ExtractGeminiErrorMessage(string raw)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            if (doc.RootElement.TryGetProperty("error", out var error) &&
+                error.TryGetProperty("message", out var msg))
+                return msg.GetString();
+        }
+        catch { }
+        return raw.Length > 200 ? raw[..200] : raw;
+    }
+
+    private static string? ExtractBlockReason(string raw)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(raw);
+            if (doc.RootElement.TryGetProperty("promptFeedback", out var fb) &&
+                fb.TryGetProperty("blockReason", out var br))
+                return br.GetString();
+        }
+        catch { }
+        return null;
     }
 
     private static string BuildRequestBodyJson(string userPrompt)
