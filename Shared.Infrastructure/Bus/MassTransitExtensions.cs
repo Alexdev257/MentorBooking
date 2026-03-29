@@ -14,8 +14,10 @@ namespace Shared.Infrastructure.Bus
     {
         public static IServiceCollection AddMessageBus(this IServiceCollection services, IConfiguration configuration, params System.Reflection.Assembly[] consumerAssemblies)
         {
+            var enabled = configuration["RabbitMQ:Enabled"];
             var host = configuration["RabbitMQ:Host"];
-            if (string.IsNullOrWhiteSpace(host))
+            if (string.Equals(enabled, "false", StringComparison.OrdinalIgnoreCase)
+                || string.IsNullOrWhiteSpace(host))
             {
                 services.AddScoped<IMessageProducer, NoOpMessageProducer>();
                 return services;
