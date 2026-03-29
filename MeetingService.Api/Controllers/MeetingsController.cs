@@ -59,6 +59,32 @@ public class MeetingsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Recordings theo BookingId (không cần biết MeetingId).</summary>
+    [HttpGet("by-booking/{bookingId:guid}/recordings")]
+    [ProducesResponseType(typeof(CommonResponse<List<MeetingRecordingDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CommonResponse<List<MeetingRecordingDto>>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetRecordingsByBookingId(Guid bookingId, CancellationToken cancellationToken)
+    {
+        var result = await _meetingService.GetRecordingsByBookingIdAsync(bookingId, cancellationToken);
+        if (!result.IsSuccess)
+            return NotFound(result);
+        return Ok(result);
+    }
+
+    /// <summary>Chỉ JoinUrl / HostUrl / provider (payload nhẹ).</summary>
+    [HttpGet("meetings/{id:guid}/join-links")]
+    [ProducesResponseType(typeof(CommonResponse<MeetingJoinLinksDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CommonResponse<MeetingJoinLinksDto>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMeetingJoinLinks(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await _meetingService.GetMeetingJoinLinksAsync(id, cancellationToken);
+        if (!result.IsSuccess)
+            return NotFound(result);
+        return Ok(result);
+    }
+
     /// <summary>Danh sách recording của một meeting.</summary>
     [HttpGet("meetings/{meetingId:guid}/recordings")]
     [ProducesResponseType(typeof(CommonResponse<List<MeetingRecordingDto>>), StatusCodes.Status200OK)]

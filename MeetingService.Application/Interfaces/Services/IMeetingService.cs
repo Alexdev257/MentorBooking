@@ -18,4 +18,10 @@ public interface IMeetingService
     Task<CommonResponse<List<MeetingRecordingDto>>> GetRecordingsByMeetingIdAsync(Guid meetingId, CancellationToken cancellationToken = default);
 
     Task<CommonResponse<MeetingRecordingDto>> GetRecordingByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<CommonResponse<List<MeetingRecordingDto>>> GetRecordingsByBookingIdAsync(
+        Guid bookingId,
+        CancellationToken cancellationToken = default);
+
+    Task<CommonResponse<MeetingJoinLinksDto>> GetMeetingJoinLinksAsync(Guid meetingId, CancellationToken cancellationToken = default);
 }

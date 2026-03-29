@@ -158,4 +158,42 @@ public class MeetingAppService : IMeetingService
 
         return new CommonResponse<MeetingRecordingDto> { Data = MapRecording(rec) };
     }
+
+    public async Task<CommonResponse<List<MeetingRecordingDto>>> GetRecordingsByBookingIdAsync(
+        Guid bookingId,
+        CancellationToken cancellationToken = default)
+    {
+        var meetingId = await _unitOfWork.Meetings
+            .FindAsync(m => m.BookingId == bookingId && !m.IsDeleted)
+            .Select(m => m.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (meetingId == Guid.Empty)
+            return new CommonResponse<List<MeetingRecordingDto>> { IsSuccess = false, Message = "Không tìm thấy meeting cho booking này." };
+
+        return await GetRecordingsByMeetingIdAsync(meetingId, cancellationToken);
+    }
+
+    public async Task<CommonResponse<MeetingJoinLinksDto>> GetMeetingJoinLinksAsync(Guid meetingId, CancellationToken cancellationToken = default)
+    {
+        var meeting = await _unitOfWork.Meetings
+            .FindAsync(m => m.Id == meetingId && !m.IsDeleted)
+            .Select(m => new { m.Id, m.BookingId, m.Provider, m.JoinUrl, m.HostUrl })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (meeting == null)
+            return new CommonResponse<MeetingJoinLinksDto> { IsSuccess = false, Message = "Không tìm thấy meeting." };
+
+        return new CommonResponse<MeetingJoinLinksDto>
+        {
+            Data = new MeetingJoinLinksDto
+            {
+                MeetingId = meeting.Id,
+                BookingId = meeting.BookingId,
+                Provider = meeting.Provider ?? string.Empty,
+                JoinUrl = meeting.JoinUrl,
+                HostUrl = meeting.HostUrl
+            }
+        };
+    }
 }

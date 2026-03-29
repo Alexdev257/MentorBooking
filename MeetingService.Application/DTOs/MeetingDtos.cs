@@ -29,6 +29,16 @@ public class MeetingDetailDto
     public List<MeetingRecordingDto> Recordings { get; set; } = new();
 }
 
+/// <summary>Chỉ link họp — tiện cho màn hình “Vào Zoom”.</summary>
+public class MeetingJoinLinksDto
+{
+    public Guid MeetingId { get; set; }
+    public Guid BookingId { get; set; }
+    public string Provider { get; set; } = string.Empty;
+    public string? JoinUrl { get; set; }
+    public string? HostUrl { get; set; }
+}
+
 public class MeetingRecordingDto
 {
     public Guid Id { get; set; }
