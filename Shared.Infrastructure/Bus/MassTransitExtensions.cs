@@ -32,7 +32,11 @@ namespace Shared.Infrastructure.Bus
 
                 x.UsingRabbitMq((context, cfg) =>
                 {
-                    cfg.Host(host, "/", h =>
+                    var virtualHost = configuration["RabbitMQ:VirtualHost"];
+                    if (string.IsNullOrWhiteSpace(virtualHost))
+                        virtualHost = "/";
+
+                    cfg.Host(host, virtualHost, h =>
                     {
                         h.Username(configuration["RabbitMQ:Username"] ?? "guest");
                         h.Password(configuration["RabbitMQ:Password"] ?? "guest");

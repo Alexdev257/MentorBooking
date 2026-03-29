@@ -18,7 +18,15 @@ envVarGroups:
       - key: JwtSettings__Audience
         value: https://mentorbooking-gateway.onrender.com
       - key: RabbitMQ__Enabled
-        value: "false"
+        value: "true"
+      - key: RabbitMQ__Host
+        value: armadillo-01.rmq.cloudamqp.com
+      - key: RabbitMQ__VirtualHost
+        value: hnlprtvu
+      - key: RabbitMQ__Username
+        value: hnlprtvu
+      - key: RabbitMQ__Password
+        value: 3h55dGpfEzrtutl-rIvanvdM8KptY9mF
 
 services:
   # ==================== AUTH SERVICE ====================

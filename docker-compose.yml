@@ -48,15 +48,14 @@ services:
       Admin__DefaultPassword: ${ADMIN_PASSWORD:-Admin@123}
       Firebase__CredentialPath: ${FIREBASE_CREDENTIAL_PATH:-}
       Firebase__BucketName: ${FIREBASE_BUCKET:-mentorbookingproject.firebasestorage.app}
-      RabbitMQ__Host: rabbitmq
-      RabbitMQ__Username: ${RABBITMQ_USER:-guest}
-      RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
+      RabbitMQ__Host: ${RABBITMQ_HOST:-armadillo-01.rmq.cloudamqp.com}
+      RabbitMQ__VirtualHost: ${RABBITMQ_VHOST:-hnlprtvu}
+      RabbitMQ__Username: ${RABBITMQ_USER:-hnlprtvu}
+      RabbitMQ__Password: ${RABBITMQ_PASS:-3h55dGpfEzrtutl-rIvanvdM8KptY9mF}
     ports:
       - "4002:8080"
     depends_on:
       postgres:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
 
   booking-service:
@@ -75,15 +74,14 @@ services:
       Zoom__ClientId: ${ZOOM_CLIENT_ID:-}
       Zoom__ClientSecret: ${ZOOM_CLIENT_SECRET:-}
       Zoom__SecretToken: ${ZOOM_SECRET_TOKEN:-}
-      RabbitMQ__Host: rabbitmq
-      RabbitMQ__Username: ${RABBITMQ_USER:-guest}
-      RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
+      RabbitMQ__Host: ${RABBITMQ_HOST:-armadillo-01.rmq.cloudamqp.com}
+      RabbitMQ__VirtualHost: ${RABBITMQ_VHOST:-hnlprtvu}
+      RabbitMQ__Username: ${RABBITMQ_USER:-hnlprtvu}
+      RabbitMQ__Password: ${RABBITMQ_PASS:-3h55dGpfEzrtutl-rIvanvdM8KptY9mF}
     ports:
       - "4200:8080"
     depends_on:
       postgres:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
 
   meeting-service:
@@ -97,15 +95,14 @@ services:
       JwtSettings__SecretKey: ${JWT_SECRET_KEY:-xynbqiydczvhbcomoewzcldjrqnwrwii}
       JwtSettings__Issuer: ${JWT_ISSUER:-https://mentorbooking.up.railway.app}
       JwtSettings__Audience: ${JWT_AUDIENCE:-https://mentorbooking.up.railway.app}
-      RabbitMQ__Host: rabbitmq
-      RabbitMQ__Username: ${RABBITMQ_USER:-guest}
-      RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
+      RabbitMQ__Host: ${RABBITMQ_HOST:-armadillo-01.rmq.cloudamqp.com}
+      RabbitMQ__VirtualHost: ${RABBITMQ_VHOST:-hnlprtvu}
+      RabbitMQ__Username: ${RABBITMQ_USER:-hnlprtvu}
+      RabbitMQ__Password: ${RABBITMQ_PASS:-3h55dGpfEzrtutl-rIvanvdM8KptY9mF}
     ports:
       - "4300:8080"
     depends_on:
       postgres:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
 
   ai-service:
@@ -122,15 +119,14 @@ services:
       Gemini__ApiKey: ${GEMINI_API_KEY:-}
       Gemini__Model: ${GEMINI_MODEL:-gemini-2.5-flash-lite}
       Storage__BasePath: /app/uploads
-      RabbitMQ__Host: rabbitmq
-      RabbitMQ__Username: ${RABBITMQ_USER:-guest}
-      RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
+      RabbitMQ__Host: ${RABBITMQ_HOST:-armadillo-01.rmq.cloudamqp.com}
+      RabbitMQ__VirtualHost: ${RABBITMQ_VHOST:-hnlprtvu}
+      RabbitMQ__Username: ${RABBITMQ_USER:-hnlprtvu}
+      RabbitMQ__Password: ${RABBITMQ_PASS:-3h55dGpfEzrtutl-rIvanvdM8KptY9mF}
     ports:
       - "4100:8080"
     depends_on:
       postgres:
-        condition: service_healthy
-      rabbitmq:
         condition: service_healthy
 
   email-service:
@@ -146,14 +142,12 @@ services:
       Email__Port: ${EMAIL_PORT:-587}
       Email__Username: ${EMAIL_USERNAME:-}
       Email__Password: ${EMAIL_PASSWORD:-}
-      RabbitMQ__Host: rabbitmq
-      RabbitMQ__Username: ${RABBITMQ_USER:-guest}
-      RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
+      RabbitMQ__Host: ${RABBITMQ_HOST:-armadillo-01.rmq.cloudamqp.com}
+      RabbitMQ__VirtualHost: ${RABBITMQ_VHOST:-hnlprtvu}
+      RabbitMQ__Username: ${RABBITMQ_USER:-hnlprtvu}
+      RabbitMQ__Password: ${RABBITMQ_PASS:-3h55dGpfEzrtutl-rIvanvdM8KptY9mF}
     ports:
       - "4400:8080"
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
 
   api-gateway:
     build:
