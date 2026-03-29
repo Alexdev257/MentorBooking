@@ -107,4 +107,10 @@ public class AuthController : ControllerBase
         var result = await _authService.LogoutAsync(userId.Value);
         return result.IsSuccess ? Ok(result) : BadRequest(result);
     }
+
+    [HttpGet]
+    public IActionResult WakeupOnRender()
+    {
+        return Ok("Hello word");
+    }
 }
