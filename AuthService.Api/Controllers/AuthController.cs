@@ -108,6 +108,7 @@ public class AuthController : ControllerBase
         return result.IsSuccess ? Ok(result) : BadRequest(result);
     }
 
+    //endpoint fot not sleeping render
     [HttpGet]
     public IActionResult WakeupOnRender()
     {
