@@ -75,6 +75,8 @@ services:
         sync: false
       - key: Zoom__ClientSecret
         sync: false
+      - key: Zoom__SecretToken
+        sync: false
 
   # ==================== MEETING SERVICE ====================
   - type: web

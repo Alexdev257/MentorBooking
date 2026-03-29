@@ -37,24 +37,59 @@ public class ZoomController : ControllerBase
     }
 
     /// <summary>
-    /// Zoom webhooks. Subscribe in Zoom App to: endpoint.url_validation, meeting.started,
-    /// meeting.participant_joined, meeting.ended, recording.completed.
+    /// Zoom Event Subscriptions — POST <c>/api/zoom/wh</c>.
+    /// In Zoom Marketplace: set "Event notification endpoint URL" to <c>https://&lt;host&gt;/api/zoom/wh</c> (must match gateway).
+    /// Required config: <c>Zoom:SecretToken</c> (Verification Token from the Zoom app) for URL validation.
+    /// Events: endpoint.url_validation, meeting.started, meeting.participant_joined, meeting.ended, recording.completed.
     /// </summary>
-    [HttpPost("webhooks")]
+    [HttpPost("wh")]
     [AllowAnonymous]
-    public async Task<IActionResult> HandleWebhooks([FromBody] ZoomWebhookRequest request, CancellationToken cancellationToken)
+    public Task<IActionResult> HandleWebhooks([FromBody] ZoomWebhookRequest? request, CancellationToken cancellationToken)
+        => HandleWebhooksCore(request, cancellationToken);
+
+    /// <summary>
+    /// Lets you verify the public URL is routed (browser or curl). Zoom validation always uses POST with JSON.
+    /// </summary>
+    [HttpGet("wh")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public IActionResult ZoomWebhookEndpointInfo()
     {
+        return Ok(new
+        {
+            ok = true,
+            message = "Zoom Event Subscription endpoint. Use POST with JSON. URL validation sends event endpoint.url_validation.",
+            path = "/api/zoom/wh"
+        });
+    }
+
+    private async Task<IActionResult> HandleWebhooksCore(ZoomWebhookRequest? request, CancellationToken cancellationToken)
+    {
+        if (request == null)
+        {
+            _logger.LogWarning("Zoom webhook: empty body");
+            return BadRequest(new { message = "Expected JSON body." });
+        }
+
         _logger.LogInformation("Received Zoom Webhook: {Event}", request.Event);
 
-        // 1. Handle Zoom CRC (Challenge Response Check)
-        if (request.Event == "endpoint.url_validation")
+        // 1. Zoom URL validation (Challenge Response Check) — required for "Validate" in developer portal
+        if (string.Equals(request.Event, "endpoint.url_validation", StringComparison.OrdinalIgnoreCase))
         {
-            var plainToken = request.Payload.PlainToken;
+            var plainToken = request.Payload?.PlainToken;
             var secretToken = _configuration["Zoom:SecretToken"];
 
-            if (string.IsNullOrEmpty(plainToken) || string.IsNullOrEmpty(secretToken))
+            if (string.IsNullOrEmpty(plainToken))
             {
-                return BadRequest("Missing token for validation");
+                _logger.LogWarning("Zoom url_validation: missing payload.plainToken");
+                return BadRequest(new { message = "Missing payload.plainToken" });
+            }
+
+            if (string.IsNullOrEmpty(secretToken))
+            {
+                _logger.LogError("Zoom url_validation: Zoom:SecretToken is not configured (set Verification Token from Zoom app).");
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { message = "Server missing Zoom:SecretToken. Copy Secret Token from Zoom app to configuration." });
             }
 
             var hash = HMACSHA256Hash(plainToken, secretToken);
@@ -63,6 +98,12 @@ public class ZoomController : ControllerBase
                 PlainToken = plainToken,
                 EncryptedToken = hash
             });
+        }
+
+        if (request.Payload == null)
+        {
+            _logger.LogWarning("Zoom webhook {Event}: null payload", request.Event);
+            return Ok();
         }
 
         // 2. Extract Zoom meeting id (numeric string stored in Booking.GoogleEventId)

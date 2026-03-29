@@ -74,6 +74,7 @@ services:
       Zoom__AccountId: ${ZOOM_ACCOUNT_ID:-}
       Zoom__ClientId: ${ZOOM_CLIENT_ID:-}
       Zoom__ClientSecret: ${ZOOM_CLIENT_SECRET:-}
+      Zoom__SecretToken: ${ZOOM_SECRET_TOKEN:-}
       RabbitMQ__Host: rabbitmq
       RabbitMQ__Username: ${RABBITMQ_USER:-guest}
       RabbitMQ__Password: ${RABBITMQ_PASS:-guest}
