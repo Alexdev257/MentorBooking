@@ -124,7 +124,7 @@ services:
       - key: Whisper__AutoDownloadIfMissing
         value: "true"
       - key: Whisper__ModelType
-        value: Base
+        value: Tiny
 
   # ==================== EMAIL SERVICE ====================
   - type: web
