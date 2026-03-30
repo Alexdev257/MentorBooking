@@ -1,4 +1,4 @@
-﻿using AuthService.Application.DTOs.Request.Review;
+using AuthService.Application.DTOs.Request.Review;
 using AuthService.Application.DTOs.Response.Review;
 using AuthService.Application.Interfaces.Repositories;
 using AuthService.Application.Interfaces.Services;
@@ -151,7 +151,8 @@ namespace AuthService.Application.Services
             }
             if (!string.IsNullOrWhiteSpace(request.Comment))
             {
-                reviews = reviews.Where(x => x.Comment.ToLower().Contains(request.Comment.ToLower()));
+                var term = request.Comment.ToLower();
+                reviews = reviews.Where(x => x.Comment != null && x.Comment.ToLower().Contains(term));
             }
             if (!string.IsNullOrEmpty(request.SortBy))
             {
@@ -188,20 +189,24 @@ namespace AuthService.Application.Services
                                                                      BookingId = x.BookingId,
                                                                      Comment = x.Comment,
                                                                      Rating = x.Rating,
-                                                                     Mentor = new UserDto
-                                                                     {
-                                                                         Id = x.Mentor.Id,
-                                                                         AvatarUrl = x.Mentor.AvatarUrl,
-                                                                         Email = x.Mentor.Email,
-                                                                         Fullname = x.Mentor.Fullname
-                                                                     },
-                                                                     Mentee = new UserDto
-                                                                     {
-                                                                         Id = x.Mentee.Id,
-                                                                         AvatarUrl = x.Mentee.AvatarUrl,
-                                                                         Email = x.Mentee.Email,
-                                                                         Fullname = x.Mentee.Fullname
-                                                                     }
+                                                                     Mentor = x.Mentor == null
+                                                                         ? null
+                                                                         : new UserDto
+                                                                         {
+                                                                             Id = x.Mentor.Id,
+                                                                             AvatarUrl = x.Mentor.AvatarUrl,
+                                                                             Email = x.Mentor.Email,
+                                                                             Fullname = x.Mentor.Fullname
+                                                                         },
+                                                                     Mentee = x.Mentee == null
+                                                                         ? null
+                                                                         : new UserDto
+                                                                         {
+                                                                             Id = x.Mentee.Id,
+                                                                             AvatarUrl = x.Mentee.AvatarUrl,
+                                                                             Email = x.Mentee.Email,
+                                                                             Fullname = x.Mentee.Fullname
+                                                                         }
                                                                  },
                                                                  request.Fields);
             return new CommonResponse<PaginationResponse<object>>

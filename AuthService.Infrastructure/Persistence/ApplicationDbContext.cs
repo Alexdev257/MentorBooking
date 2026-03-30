@@ -11,6 +11,7 @@ namespace AuthService.Infrastructure.Persistence
         public DbSet<User> Users => Set<User>();
         public DbSet<Teacher> Teachers => Set<Teacher>();
         public DbSet<Student> Students => Set<Student>();
+        public DbSet<Review> Reviews => Set<Review>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
