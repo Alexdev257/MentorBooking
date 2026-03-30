@@ -104,7 +104,7 @@ namespace MeetingService.Infrastructure.DependencyInjection
                         OnAuthenticationFailed = context =>
                         {
                             if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-                                context.Response.Headers.Add("Token-Expired", "true");
+                                context.Response.Headers["Token-Expired"] = "true";
                             return Task.CompletedTask;
                         },
                         // 1. Xử lý khi chưa đăng nhập hoặc Token sai (401 Unauthorized)

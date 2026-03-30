@@ -8,7 +8,6 @@ public class QueryablePager : IQueryablePager
 {
     public async Task<PaginationResponse<T>> ToPagedListAsync<T>(IQueryable<T> source, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
     {
-        //return await source.ToPagedListAsync(pageNumber, pageSize, cancellationToken);
-        throw new NotImplementedException();
+        return await source.ToPagedEntityListAsync(pageNumber, pageSize, cancellationToken);
     }
 }
