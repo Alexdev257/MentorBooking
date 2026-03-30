@@ -1,4 +1,4 @@
-﻿using AuthService.Application.DTOs.Request.Review;
+using AuthService.Application.DTOs.Request.Review;
 using AuthService.Application.DTOs.Response.Admin;
 using AuthService.Application.DTOs.Response.Auth;
 using AuthService.Application.Interfaces.Services;
@@ -34,15 +34,15 @@ namespace AuthService.Api.Controllers
         private bool IsStudent()
         {
             var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value;
-            return roleClaim != null && roleClaim == ((int)RoleNameEnum.Admin).ToString();
+            return roleClaim != null && roleClaim == ((int)RoleNameEnum.Student).ToString();
         }
 
-        private IActionResult? EnsureStudent(Guid? adminId)
+        private IActionResult? EnsureStudent(Guid? menteeId)
         {
             if (!IsStudent())
-                return StatusCode(StatusCodes.Status403Forbidden, new CommonResponseBase { IsSuccess = false, Message = "Only admin can perform this action" });
-            if (adminId == null)
-                return Unauthorized(new CommonResponseBase { IsSuccess = false, Message = "Invalid admin context" });
+                return StatusCode(StatusCodes.Status403Forbidden, new CommonResponseBase { IsSuccess = false, Message = "Only students can perform this action" });
+            if (menteeId == null)
+                return Unauthorized(new CommonResponseBase { IsSuccess = false, Message = "Invalid user context" });
             return null;
         }
 
@@ -137,7 +137,7 @@ namespace AuthService.Api.Controllers
         }
 
         [Authorize]
-        [HttpDelete]
+        [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteReviewAsync([FromRoute] Guid id)
         {
             var menteeId = GetMenteeIdFromClaim();
