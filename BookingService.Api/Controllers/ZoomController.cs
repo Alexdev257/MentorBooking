@@ -40,7 +40,7 @@ public class ZoomController : ControllerBase
     /// Zoom Event Subscriptions — POST <c>/api/zoom/wh</c>.
     /// In Zoom Marketplace: set "Event notification endpoint URL" to <c>https://&lt;host&gt;/api/zoom/wh</c> (must match gateway).
     /// Required config: <c>Zoom:SecretToken</c> (Verification Token from the Zoom app) for URL validation.
-    /// Events: endpoint.url_validation, meeting.started, meeting.participant_joined, meeting.ended, recording.completed.
+    /// Events: endpoint.url_validation, meeting.*, <c>recording.completed</c>, <c>recording.transcript_completed</c>, và biến thể tên event transcript khác từ Zoom.
     /// </summary>
     [HttpPost("wh")]
     [AllowAnonymous]
@@ -106,16 +106,33 @@ public class ZoomController : ControllerBase
             return Ok();
         }
 
-        // 2. Extract Zoom meeting id (numeric string stored in Booking.GoogleEventId)
-        var meetingId = request.Payload.Object?.Id;
-        if (string.IsNullOrEmpty(meetingId))
+        var eventName = request.Event ?? string.Empty;
+
+        // Cloud recording / transcript: có thể thiếu payload.object.id — lấy meeting number từ recording_files[].meeting_id
+        if (ShouldHandleZoomRecordingOrTranscriptWebhook(eventName))
         {
-            _logger.LogInformation("Zoom webhook {Event}: no payload.object.id, skipping.", request.Event);
+            var recordingMeetingId = ResolveZoomMeetingIdForRecordingPayload(request.Payload);
+            if (string.IsNullOrEmpty(recordingMeetingId))
+            {
+                _logger.LogWarning(
+                    "Zoom webhook {Event}: cannot resolve meeting id (no object.id and no recording_files[].meeting_id).",
+                    eventName);
+                return Ok();
+            }
+
+            await HandleRecordingCompleted(request, recordingMeetingId, cancellationToken);
             return Ok();
         }
 
-        // 3. Handle Events
-        switch (request.Event)
+        // 2. Meeting lifecycle: cần payload.object.id (Zoom meeting number = Booking.GoogleEventId)
+        var meetingId = request.Payload.Object?.Id;
+        if (string.IsNullOrEmpty(meetingId))
+        {
+            _logger.LogInformation("Zoom webhook {Event}: no payload.object.id, skipping.", eventName);
+            return Ok();
+        }
+
+        switch (eventName)
         {
             case "meeting.started":
                 await HandleMeetingStartedAsync(meetingId, cancellationToken);
@@ -129,8 +146,13 @@ public class ZoomController : ControllerBase
                 await HandleMeetingEndedAsync(meetingId, request.Payload.Object?.Uuid, cancellationToken);
                 break;
 
-            case "recording.completed":
-                await HandleRecordingCompleted(request, cancellationToken);
+            default:
+                if (eventName.Contains("recording", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation(
+                        "Zoom webhook {Event}: not handled as recording/transcript (add to ShouldHandle if needed).",
+                        eventName);
+                }
                 break;
         }
 
@@ -181,9 +203,8 @@ public class ZoomController : ControllerBase
         await _messageProducer.PublishAsync(new ZoomMeetingLifecycleEvent(booking.Id, 2), cancellationToken);
     }
 
-    private async Task HandleRecordingCompleted(ZoomWebhookRequest request, CancellationToken cancellationToken)
+    private async Task HandleRecordingCompleted(ZoomWebhookRequest request, string meetingId, CancellationToken cancellationToken)
     {
-        var meetingId = request.Payload.Object?.Id;
         var recordings = request.Payload.Object?.RecordingFiles;
 
         if (recordings == null || recordings.Count == 0)
@@ -306,6 +327,45 @@ public class ZoomController : ControllerBase
             "TRANSCRIPT" or "CC" or "AUDIO_TRANSCRIPT" => "text/vtt",
             _ => null
         };
+    }
+
+    /// <summary>
+    /// Zoom UI: "All Recordings have completed" → thường là <c>recording.completed</c>.
+    /// "Recording Transcript files have completed" → thường là <c>recording.transcript_completed</c>.
+    /// Một số phiên bản/docs có thể khác; thêm heuristic + log nếu vẫn lệch.
+    /// </summary>
+    private static bool ShouldHandleZoomRecordingOrTranscriptWebhook(string eventName)
+    {
+        if (string.IsNullOrWhiteSpace(eventName))
+            return false;
+
+        if (string.Equals(eventName, "recording.completed", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (string.Equals(eventName, "recording.transcript_completed", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (string.Equals(eventName, "recording.transcript_files_completed", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Heuristic: Zoom có thể đổi chuỗi sự kiện — bắt các tên chứa cả 3 khối
+        if (eventName.Contains("recording", StringComparison.OrdinalIgnoreCase)
+            && eventName.Contains("transcript", StringComparison.OrdinalIgnoreCase)
+            && eventName.Contains("completed", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>Meeting id dạng số (lưu trong Booking.GoogleEventId), ưu tiên object.id rồi file đầu tiên.</summary>
+    private static string? ResolveZoomMeetingIdForRecordingPayload(ZoomWebhookPayload payload)
+    {
+        if (!string.IsNullOrWhiteSpace(payload.Object?.Id))
+            return payload.Object!.Id!.Trim();
+
+        var files = payload.Object?.RecordingFiles;
+        var fromFile = files?.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.MeetingId))?.MeetingId;
+        return string.IsNullOrWhiteSpace(fromFile) ? null : fromFile.Trim();
     }
 
     private static string HMACSHA256Hash(string plainToken, string secretToken)
