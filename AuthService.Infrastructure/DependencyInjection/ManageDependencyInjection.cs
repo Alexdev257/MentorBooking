@@ -142,7 +142,7 @@ namespace AuthService.Infrastructure.DependencyInjection
                         OnAuthenticationFailed = context =>
                         {
                             if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-                                context.Response.Headers.Add("Token-Expired", "true");
+                                context.Response.Headers["Token-Expired"] = "true";
                             return Task.CompletedTask;
                         },
                         // 1. X? lý khi ch?a ??ng nh?p ho?c Token sai (401 Unauthorized)
