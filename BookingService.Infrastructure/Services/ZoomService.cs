@@ -166,7 +166,6 @@ public class ZoomService : IZoomService
         var tokenResponse = await response.Content
             .ReadFromJsonAsync<ZoomTokenResponse>(cancellationToken: cancellationToken);
 
-        Console.WriteLine($"Zoom AccessToken:{tokenResponse.access_token}");
         return tokenResponse!.access_token;
     }
 
@@ -209,17 +208,47 @@ public class ZoomService : IZoomService
         }
     }
 
-    public async Task<List<ZoomParticipantReport>> GetAttendanceReportAsync(string meetingId, CancellationToken ct = default)
+    public async Task<List<ZoomParticipantReport>> GetAttendanceReportAsync(
+        string meetingId,
+        string? meetingInstanceUuid = null,
+        CancellationToken ct = default)
     {
         try
         {
             var token = await GetAccessToken(ct);
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            var response = await _httpClient.GetAsync($"report/meetings/{meetingId}/participants?page_size=30", ct);
+            if (!string.IsNullOrWhiteSpace(meetingInstanceUuid))
+            {
+                var pathUuid = EncodeZoomMeetingUuidForPath(meetingInstanceUuid);
+                var pastResponse = await _httpClient.GetAsync(
+                    $"past_meetings/{pathUuid}/participants?page_size=300",
+                    ct);
+                if (pastResponse.IsSuccessStatusCode)
+                {
+                    var pastReport = await pastResponse.Content
+                        .ReadFromJsonAsync<ZoomAttendanceReportResponse>(cancellationToken: ct);
+                    return pastReport?.Participants ?? new List<ZoomParticipantReport>();
+                }
+
+                var pastBody = await pastResponse.Content.ReadAsStringAsync(ct);
+                _logger.LogWarning(
+                    "Zoom past_meetings/.../participants returned {Status}: {Body}. Trying report API.",
+                    pastResponse.StatusCode,
+                    pastBody);
+            }
+
+            var response = await _httpClient.GetAsync(
+                $"report/meetings/{meetingId}/participants?page_size=300",
+                ct);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Failed to get attendance report: {Status}", response.StatusCode);
+                var body = await response.Content.ReadAsStringAsync(ct);
+                _logger.LogError(
+                    "Zoom report/meetings/{MeetingId}/participants failed: {Status} {Body}",
+                    meetingId,
+                    response.StatusCode,
+                    body);
                 return new List<ZoomParticipantReport>();
             }
 
@@ -232,4 +261,8 @@ public class ZoomService : IZoomService
             return new List<ZoomParticipantReport>();
         }
     }
+
+    /// <summary>Zoom requires double URL-encoding for meeting UUID in path when it contains <c>/</c> etc.</summary>
+    private static string EncodeZoomMeetingUuidForPath(string uuid) =>
+        Uri.EscapeDataString(Uri.EscapeDataString(uuid.Trim()));
 }

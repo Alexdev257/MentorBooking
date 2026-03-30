@@ -126,7 +126,7 @@ public class ZoomController : ControllerBase
                 break;
 
             case "meeting.ended":
-                await HandleMeetingEndedAsync(meetingId, cancellationToken);
+                await HandleMeetingEndedAsync(meetingId, request.Payload.Object?.Uuid, cancellationToken);
                 break;
 
             case "recording.completed":
@@ -150,7 +150,7 @@ public class ZoomController : ControllerBase
         await _messageProducer.PublishAsync(new ZoomMeetingLifecycleEvent(booking.Id, 1), cancellationToken);
     }
 
-    private async Task HandleMeetingEndedAsync(string zoomMeetingId, CancellationToken cancellationToken)
+    private async Task HandleMeetingEndedAsync(string zoomMeetingId, string? zoomMeetingUuid, CancellationToken cancellationToken)
     {
         var booking = await _unitOfWork.Bookings.FindAsync(b => b.GoogleEventId == zoomMeetingId).FirstOrDefaultAsync(cancellationToken);
         if (booking == null)
@@ -163,7 +163,7 @@ public class ZoomController : ControllerBase
         booking.Status = (int)BookingStatusEnum.Completed;
         _unitOfWork.Bookings.UpdateAsync(booking);
 
-        var attendanceReport = await _zoomService.GetAttendanceReportAsync(zoomMeetingId);
+        var attendanceReport = await _zoomService.GetAttendanceReportAsync(zoomMeetingId, zoomMeetingUuid, cancellationToken);
         if (attendanceReport.Any())
         {
             var participants = await _unitOfWork.BookingParticipants.FindAsync(p => p.BookingId == booking.Id).ToListAsync(cancellationToken);

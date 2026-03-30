@@ -17,5 +17,6 @@ public interface IZoomService
     Task<(string? MeetingId, string? JoinUrl, string? StartUrl)> CreateMeetingAsync(Booking booking, CancellationToken cancellationToken = default);
     Task<string> GetAccessToken(CancellationToken cancellationToken);
     Task<string?> AddRegistrantAsync(string meetingId, string email, string? firstName, string? lastName, CancellationToken ct = default);
-    Task<List<ZoomParticipantReport>> GetAttendanceReportAsync(string meetingId, CancellationToken ct = default);
+    /// <param name="meetingInstanceUuid">From webhook <c>payload.object.uuid</c>; used with past-meetings API (works with typical meeting scopes).</param>
+    Task<List<ZoomParticipantReport>> GetAttendanceReportAsync(string meetingId, string? meetingInstanceUuid = null, CancellationToken ct = default);
 }
