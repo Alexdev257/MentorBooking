@@ -126,7 +126,7 @@ public class ZoomController : ControllerBase
                 break;
 
             case "meeting.ended":
-                await HandleMeetingEndedAsync(meetingId, cancellationToken);
+                await HandleMeetingEndedAsync(meetingId, request.Payload.Object?.Uuid, cancellationToken);
                 break;
 
             case "recording.completed":
@@ -150,7 +150,7 @@ public class ZoomController : ControllerBase
         await _messageProducer.PublishAsync(new ZoomMeetingLifecycleEvent(booking.Id, 1), cancellationToken);
     }
 
-    private async Task HandleMeetingEndedAsync(string zoomMeetingId, CancellationToken cancellationToken)
+    private async Task HandleMeetingEndedAsync(string zoomMeetingId, string? zoomMeetingUuid, CancellationToken cancellationToken)
     {
         var booking = await _unitOfWork.Bookings.FindAsync(b => b.GoogleEventId == zoomMeetingId).FirstOrDefaultAsync(cancellationToken);
         if (booking == null)
@@ -163,7 +163,7 @@ public class ZoomController : ControllerBase
         booking.Status = (int)BookingStatusEnum.Completed;
         _unitOfWork.Bookings.UpdateAsync(booking);
 
-        var attendanceReport = await _zoomService.GetAttendanceReportAsync(zoomMeetingId);
+        var attendanceReport = await _zoomService.GetAttendanceReportAsync(zoomMeetingId, zoomMeetingUuid, cancellationToken);
         if (attendanceReport.Any())
         {
             var participants = await _unitOfWork.BookingParticipants.FindAsync(p => p.BookingId == booking.Id).ToListAsync(cancellationToken);
@@ -192,11 +192,11 @@ public class ZoomController : ControllerBase
             return;
         }
 
-        var videoFile = recordings.FirstOrDefault(f => string.Equals(f.FileType, "MP4", StringComparison.OrdinalIgnoreCase))
-            ?? recordings.FirstOrDefault();
-        if (videoFile == null)
+        var videoFile = GetPreferredZoomRecordingFile(recordings);
+        var transcriptFile = GetZoomTranscriptFile(recordings);
+        if (videoFile == null && transcriptFile == null)
         {
-            _logger.LogWarning("Recording completed webhook for meeting {MeetingId} has no usable recording file", meetingId);
+            _logger.LogWarning("Recording completed webhook for meeting {MeetingId} has no video/audio or transcript file", meetingId);
             return;
         }
 
@@ -207,38 +207,91 @@ public class ZoomController : ControllerBase
             return;
         }
 
-        // Prefer play URL for quick preview, fallback to download URL if missing.
-        var recordingUrl = !string.IsNullOrWhiteSpace(videoFile.PlayUrl)
-            ? videoFile.PlayUrl
-            : videoFile.DownloadUrl;
+        var recordingUrl = videoFile != null ? PickZoomPlayOrDownloadUrl(videoFile) : null;
+        var transcriptUrl = transcriptFile != null ? PickZoomPlayOrDownloadUrl(transcriptFile) : null;
 
-        if (string.IsNullOrWhiteSpace(recordingUrl))
+        if (string.IsNullOrWhiteSpace(recordingUrl) && string.IsNullOrWhiteSpace(transcriptUrl))
         {
-            _logger.LogWarning("Recording completed for booking {BookingId} but no play/download URL in payload", booking.Id);
+            _logger.LogWarning("Recording completed for booking {BookingId} but no play/download URL for video or transcript", booking.Id);
             return;
         }
 
-        _logger.LogInformation("Recording completed for booking {BookingId}. Link: {Link}", booking.Id, recordingUrl);
+        var noteLines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(recordingUrl))
+            noteLines.Add($"[Zoom Recording]: {recordingUrl.Trim()}");
+        if (!string.IsNullOrWhiteSpace(transcriptUrl))
+            noteLines.Add($"[Zoom Transcript]: {transcriptUrl.Trim()}");
+
+        _logger.LogInformation(
+            "Recording completed for booking {BookingId}. Recording: {HasRec} Transcript: {HasTr}",
+            booking.Id,
+            recordingUrl != null,
+            transcriptUrl != null);
 
         var currentNotes = booking.Notes ?? string.Empty;
-        booking.Notes = $"{currentNotes}\n[Zoom Recording]: {recordingUrl}".Trim();
+        booking.Notes = $"{currentNotes}\n{string.Join("\n", noteLines)}".Trim();
         _unitOfWork.Bookings.UpdateAsync(booking);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var contentType = MapZoomFileTypeToContentType(videoFile.FileType);
+        var contentType = videoFile != null ? MapZoomFileTypeToContentType(videoFile.FileType) : null;
         int? durationSeconds = null;
-        if (videoFile.RecordingEnd is { } end && videoFile.RecordingStart is { } start && end > start)
+        if (videoFile?.RecordingEnd is { } end && videoFile.RecordingStart is { } start && end > start)
             durationSeconds = (int)(end - start).TotalSeconds;
+
+        var transcriptContentType = transcriptFile != null ? MapZoomFileTypeToContentType(transcriptFile.FileType) : null;
 
         await _messageProducer.PublishAsync(
             new ZoomRecordingCompletedEvent(
                 booking.Id,
-                recordingUrl.Trim(),
+                recordingUrl?.Trim(),
                 contentType,
                 durationSeconds,
-                videoFile.FileSize),
+                videoFile?.FileSize,
+                transcriptUrl?.Trim(),
+                transcriptContentType,
+                transcriptFile?.FileSize),
             cancellationToken);
     }
+
+    /// <summary>MP4 → M4A → first file that is not transcript/chat/thumbnail sidecar.</summary>
+    private static ZoomRecordingFile? GetPreferredZoomRecordingFile(List<ZoomRecordingFile> recordings)
+    {
+        var mp4 = recordings.FirstOrDefault(f => string.Equals(f.FileType, "MP4", StringComparison.OrdinalIgnoreCase));
+        if (mp4 != null)
+            return mp4;
+        var m4a = recordings.FirstOrDefault(f => string.Equals(f.FileType, "M4A", StringComparison.OrdinalIgnoreCase));
+        if (m4a != null)
+            return m4a;
+        return recordings.FirstOrDefault(f => !IsZoomTranscriptOrSidecarArtifact(f.FileType));
+    }
+
+    private static ZoomRecordingFile? GetZoomTranscriptFile(List<ZoomRecordingFile> recordings) =>
+        recordings.FirstOrDefault(f => IsZoomNativeTranscriptFile(f.FileType));
+
+    private static bool IsZoomNativeTranscriptFile(string? fileType)
+    {
+        if (string.IsNullOrWhiteSpace(fileType))
+            return false;
+        return fileType.Trim().ToUpperInvariant() switch
+        {
+            "TRANSCRIPT" or "CC" or "AUDIO_TRANSCRIPT" => true,
+            _ => false,
+        };
+    }
+
+    private static bool IsZoomTranscriptOrSidecarArtifact(string? fileType)
+    {
+        if (string.IsNullOrWhiteSpace(fileType))
+            return false;
+        return fileType.Trim().ToUpperInvariant() switch
+        {
+            "TRANSCRIPT" or "CC" or "AUDIO_TRANSCRIPT" or "CHAT" or "CSV" or "THUMBNAIL" => true,
+            _ => false,
+        };
+    }
+
+    private static string? PickZoomPlayOrDownloadUrl(ZoomRecordingFile file) =>
+        !string.IsNullOrWhiteSpace(file.PlayUrl) ? file.PlayUrl : file.DownloadUrl;
 
     private static string? MapZoomFileTypeToContentType(string? fileType)
     {
@@ -250,6 +303,7 @@ public class ZoomController : ControllerBase
             "M4A" => "audio/mp4",
             "MP3" => "audio/mpeg",
             "CHAT" => "text/plain",
+            "TRANSCRIPT" or "CC" or "AUDIO_TRANSCRIPT" => "text/vtt",
             _ => null
         };
     }

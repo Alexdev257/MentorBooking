@@ -28,6 +28,10 @@ public class ZoomWebhookObject
     [JsonPropertyName("id")]
     public string? Id { get; set; }
 
+    /// <summary>Instance UUID for this meeting occurrence; required for <c>GET /past_meetings/{{uuid}}/participants</c>.</summary>
+    [JsonPropertyName("uuid")]
+    public string? Uuid { get; set; }
+
     [JsonPropertyName("topic")]
     public string? Topic { get; set; }
 

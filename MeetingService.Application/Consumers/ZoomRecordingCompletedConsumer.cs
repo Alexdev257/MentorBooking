@@ -24,13 +24,14 @@ public class ZoomRecordingCompletedConsumer : IConsumer<ZoomRecordingCompletedEv
         var ct = context.CancellationToken;
 
         _logger.LogInformation(
-            "ZoomRecordingCompleted: BookingId={BookingId}, UrlLength={Len}",
+            "ZoomRecordingCompleted: BookingId={BookingId}, RecordingUrlLen={Len}, TranscriptUrlLen={Tlen}",
             message.BookingId,
-            message.StorageUrl?.Length ?? 0);
+            message.StorageUrl?.Length ?? 0,
+            message.TranscriptStorageUrl?.Length ?? 0);
 
-        if (string.IsNullOrWhiteSpace(message.StorageUrl))
+        if (string.IsNullOrWhiteSpace(message.StorageUrl) && string.IsNullOrWhiteSpace(message.TranscriptStorageUrl))
         {
-            _logger.LogWarning("ZoomRecordingCompleted: empty StorageUrl for BookingId {BookingId}", message.BookingId);
+            _logger.LogWarning("ZoomRecordingCompleted: no recording or transcript URL for BookingId {BookingId}", message.BookingId);
             return;
         }
 
@@ -42,40 +43,72 @@ public class ZoomRecordingCompletedConsumer : IConsumer<ZoomRecordingCompletedEv
         if (meeting == null)
         {
             _logger.LogWarning(
-                "ZoomRecordingCompleted: no Meeting for BookingId {BookingId}; recording not stored.",
+                "ZoomRecordingCompleted: no Meeting for BookingId {BookingId}; nothing stored.",
                 message.BookingId);
             return;
         }
 
-        var already = await _unitOfWork.MeetingRecordings
-            .FindAsync(r => r.MeetingId == meeting.Id && r.StorageUrl == message.StorageUrl)
+        var anyAdded = false;
+
+        if (!string.IsNullOrWhiteSpace(message.StorageUrl))
+            anyAdded |= await TryAddRecordingAsync(
+                meeting.Id,
+                message.StorageUrl.Trim(),
+                message.ContentType,
+                message.DurationSeconds,
+                message.SizeBytes,
+                ct);
+
+        if (!string.IsNullOrWhiteSpace(message.TranscriptStorageUrl))
+            anyAdded |= await TryAddRecordingAsync(
+                meeting.Id,
+                message.TranscriptStorageUrl.Trim(),
+                message.TranscriptContentType,
+                null,
+                message.TranscriptSizeBytes,
+                ct);
+
+        if (anyAdded)
+            await _unitOfWork.SaveChangesAsync(ct);
+    }
+
+    private async Task<bool> TryAddRecordingAsync(
+        Guid meetingId,
+        string storageUrl,
+        string? contentType,
+        int? durationSeconds,
+        long? sizeBytes,
+        CancellationToken ct)
+    {
+        var exists = await _unitOfWork.MeetingRecordings
+            .FindAsync(r => r.MeetingId == meetingId && r.StorageUrl == storageUrl)
             .AnyAsync(ct);
 
-        if (already)
+        if (exists)
         {
             _logger.LogInformation(
                 "ZoomRecordingCompleted: duplicate URL skipped for MeetingId {MeetingId}",
-                meeting.Id);
-            return;
+                meetingId);
+            return false;
         }
 
         var recording = new MeetingRecording
         {
             Id = Guid.NewGuid(),
-            MeetingId = meeting.Id,
+            MeetingId = meetingId,
             Status = 1,
-            StorageUrl = message.StorageUrl.Trim(),
-            ContentType = message.ContentType,
-            DurationSeconds = message.DurationSeconds,
-            SizeBytes = message.SizeBytes
+            StorageUrl = storageUrl,
+            ContentType = contentType,
+            DurationSeconds = durationSeconds,
+            SizeBytes = sizeBytes,
         };
 
         await _unitOfWork.MeetingRecordings.AddAsync(recording);
-        await _unitOfWork.SaveChangesAsync(ct);
-
         _logger.LogInformation(
-            "ZoomRecordingCompleted: saved MeetingRecording {RecordingId} for MeetingId {MeetingId}",
+            "ZoomRecordingCompleted: saved MeetingRecording {RecordingId} for MeetingId {MeetingId} ContentType={Ct}",
             recording.Id,
-            meeting.Id);
+            meetingId,
+            contentType);
+        return true;
     }
 }
