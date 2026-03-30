@@ -1,4 +1,5 @@
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -85,6 +86,20 @@ builder.Services.AddSwaggerGen(c =>
 //builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// Zoom recording/transcript webhooks can have larger JSON payloads (many recording_files).
+// Ensure the reverse proxy doesn't reject the request body before it reaches downstream services.
+app.Use(async (context, next) =>
+{
+    var feature = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
+    if (feature is { IsReadOnly: false })
+    {
+        // 50 MB should be plenty for Zoom webhook JSON while still bounded.
+        feature.MaxRequestBodySize = 50 * 1024 * 1024;
+    }
+
+    await next();
+});
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>
