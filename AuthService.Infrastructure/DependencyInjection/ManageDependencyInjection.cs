@@ -91,6 +91,7 @@ namespace AuthService.Infrastructure.DependencyInjection
             service.AddScoped<IQueryablePager, QueryablePager>();
             service.AddScoped<IAdminAuthService, AdminAuthService>();
             service.AddScoped<IAuthService, AuthService.Application.Services.AuthService>();
+            service.AddScoped<IReviewService, ReviewService>();
             service.AddSingleton<IStorageService, FirebaseService>();
         }
 
