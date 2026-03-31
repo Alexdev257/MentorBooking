@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Linq;
 
 namespace BookingService.Infrastructure.Services;
 
@@ -34,8 +35,9 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
         var credential = TryLoadGoogleCredential();
         if (credential == null)
         {
+            LogCredentialDiagnostics();
             _logger.LogWarning(
-                "MeetingRecordingCloudMirror: không load được Firebase credential (kiểm tra Firebase__CredentialJson hoặc file tại Firebase__CredentialPath / /etc/secrets). BucketName empty={BucketEmpty}. Chỉ lưu URL Zoom.",
+                "MeetingRecordingCloudMirror: không load được Google credential cho Storage (JSON Base64, file /etc/secrets, hay GOOGLE_APPLICATION_CREDENTIALS). BucketName empty={BucketEmpty}. Chỉ lưu URL Zoom. Nếu log vẫn giống bản cũ 'chưa cấu hình', hãy deploy lại Docker booking-service.",
                 string.IsNullOrWhiteSpace(_bucketName));
             _storageClient = null;
             return;
@@ -150,10 +152,13 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
         return e;
     }
 
-    /// <summary>Cùng thứ tự ưu tiên credential như AuthService FirebaseService (JSON, Base64, path, GOOGLE_APPLICATION_CREDENTIALS).</summary>
+    /// <summary>JSON → Base64 → đường file (nhiều biến env) → GOOGLE_APPLICATION_CREDENTIALS → quét /etc/secrets/*.json.</summary>
     private GoogleCredential? TryLoadGoogleCredential()
     {
-        var json = _configuration["Firebase:CredentialJson"];
+        var json = FirstNonEmpty(
+            _configuration["Firebase:CredentialJson"],
+            Environment.GetEnvironmentVariable("Firebase__CredentialJson"));
+
         if (!string.IsNullOrWhiteSpace(json))
         {
             try
@@ -162,11 +167,14 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Firebase CredentialJson không parse được (thiếu escape / JSON hỏng?). Thử nguồn khác.");
+                _logger.LogWarning(ex, "Firebase CredentialJson không parse được (JSON hỏng hoặc env bị cắt). Thử nguồn khác hoặc dùng CredentialJsonBase64 / Secret File.");
             }
         }
 
-        var b64 = _configuration["Firebase:CredentialJsonBase64"];
+        var b64 = FirstNonEmpty(
+            _configuration["Firebase:CredentialJsonBase64"],
+            Environment.GetEnvironmentVariable("Firebase__CredentialJsonBase64"));
+
         if (!string.IsNullOrWhiteSpace(b64))
         {
             try
@@ -180,10 +188,14 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
             }
         }
 
-        var credentialPath = _configuration["Firebase:CredentialPath"]?.Trim();
+        var credentialPath = FirstNonEmpty(
+            _configuration["Firebase:CredentialPath"],
+            Environment.GetEnvironmentVariable("Firebase__CredentialPath"));
+
         if (!string.IsNullOrWhiteSpace(credentialPath))
         {
-            foreach (var candidate in ResolveCredentialFileCandidates(credentialPath))
+            var candidates = ResolveCredentialFileCandidates(credentialPath).Distinct().ToList();
+            foreach (var candidate in candidates)
             {
                 if (!File.Exists(candidate))
                     continue;
@@ -198,8 +210,8 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
             }
 
             _logger.LogWarning(
-                "Firebase CredentialPath không tìm thấy file. Đã thử: {Candidates}. Trên Render Secret File, đường dẫn thường là /etc/secrets/&lt;tên file bạn đặt khi tạo secret&gt;.",
-                string.Join(", ", ResolveCredentialFileCandidates(credentialPath)));
+                "Firebase CredentialPath không tìm thấy file hợp lệ. Đã thử: {Candidates}. Trên Render, mount Secret File thường là /etc/secrets/tên-file-bạn-chọn.",
+                string.Join(", ", candidates));
         }
 
         var gac = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
@@ -222,7 +234,94 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
             }
         }
 
+        return TryLoadFromJsonFilesInEtcSecrets();
+    }
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var v in values)
+        {
+            if (!string.IsNullOrWhiteSpace(v))
+                return v;
+        }
+
         return null;
+    }
+
+    /// <summary>Cuối cùng: thử mọi file .json trong /etc/secrets (Render Secret Files).</summary>
+    private GoogleCredential? TryLoadFromJsonFilesInEtcSecrets()
+    {
+        const string secretsDir = "/etc/secrets";
+        if (!Directory.Exists(secretsDir))
+            return null;
+
+        var files = Directory.GetFiles(secretsDir, "*.json", SearchOption.TopDirectoryOnly);
+        if (files.Length == 0)
+            return null;
+
+        var ordered = files
+            .OrderByDescending(f =>
+            {
+                var n = Path.GetFileName(f).ToLowerInvariant();
+                if (n.Contains("firebase", StringComparison.Ordinal)) return 3;
+                if (n.Contains("adminsdk", StringComparison.Ordinal)) return 2;
+                if (n.Contains("service", StringComparison.Ordinal)) return 1;
+                return 0;
+            })
+            .ThenBy(f => Path.GetFileName(f), StringComparer.Ordinal);
+
+        foreach (var path in ordered)
+        {
+            try
+            {
+                return GoogleCredential.FromFile(path);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Bỏ qua file JSON trong /etc/secrets (không phải service account?): {Path}", path);
+            }
+        }
+
+        return null;
+    }
+
+    private void LogCredentialDiagnostics()
+    {
+        var jsonCfg = _configuration["Firebase:CredentialJson"];
+        var jsonEnv = Environment.GetEnvironmentVariable("Firebase__CredentialJson");
+        var b64Cfg = _configuration["Firebase:CredentialJsonBase64"];
+        var b64Env = Environment.GetEnvironmentVariable("Firebase__CredentialJsonBase64");
+        var pathCfg = _configuration["Firebase:CredentialPath"];
+        var pathEnv = Environment.GetEnvironmentVariable("Firebase__CredentialPath");
+        var gac = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+
+        string secretsList = "(không đọc được /etc/secrets)";
+        try
+        {
+            if (Directory.Exists("/etc/secrets"))
+            {
+                var names = Directory.GetFiles("/etc/secrets", "*", SearchOption.TopDirectoryOnly)
+                    .Select(Path.GetFileName)
+                    .OrderBy(n => n, StringComparer.Ordinal);
+                secretsList = names.Any() ? string.Join(", ", names) : "(thư mục trống)";
+            }
+        }
+        catch (Exception ex)
+        {
+            secretsList = ex.Message;
+        }
+
+        _logger.LogWarning(
+            "Firebase credential diagnostics: BucketLen={BucketLen}, JsonCfgLen={JsonCfgLen}, JsonEnvLen={JsonEnvLen}, B64CfgLen={B64CfgLen}, B64EnvLen={B64EnvLen}, PathCfg={PathCfg}, PathEnv={PathEnv}, GAC={Gac}, FilesInEtcSecrets=[{Secrets}]",
+            _bucketName.Length,
+            jsonCfg?.Length ?? 0,
+            jsonEnv?.Length ?? 0,
+            b64Cfg?.Length ?? 0,
+            b64Env?.Length ?? 0,
+            pathCfg ?? "(null)",
+            pathEnv ?? "(null)",
+            gac ?? "(null)",
+            secretsList);
     }
 
     /// <summary>Render thường mount secret dưới <c>/etc/secrets/</c>; user có thể nhập full path hoặc chỉ tên file.</summary>
