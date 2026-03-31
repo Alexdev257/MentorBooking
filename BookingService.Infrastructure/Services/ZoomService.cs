@@ -15,6 +15,8 @@ public class ZoomService : IZoomService
     private readonly IConfiguration _configuration;
     private readonly ILogger<ZoomService> _logger;
     private readonly HttpClient _httpClient;
+    private readonly object _zoomHostUserIdCacheLock = new();
+    private string? _cachedZoomHostUserId;
     private const string ConfigSection = "Zoom";
 
     public ZoomService(IConfiguration configuration, ILogger<ZoomService> logger, HttpClient httpClient)
@@ -118,8 +120,19 @@ public class ZoomService : IZoomService
                 }
             };
 
+            // Server-to-Server: GET users/me với Bearer token → id chính là host user tạo meeting (chuẩn hơn POST users/me/meetings).
+            var zoomHostUserId = await GetOrFetchZoomHostUserIdAsync(cancellationToken);
+            if (string.IsNullOrEmpty(zoomHostUserId))
+            {
+                _logger.LogError("Cannot create Zoom meeting: failed to resolve host user id from GET users/me");
+                return (null, null, null);
+            }
+
+            var meetingsEndpoint = $"users/{zoomHostUserId}/meetings";
+            _logger.LogInformation("Creating Zoom meeting via {MeetingsEndpoint}", meetingsEndpoint);
+
             var response = await _httpClient.PostAsJsonAsync(
-                "users/me/meetings",
+                meetingsEndpoint,
                 requestBody,
                 cancellationToken);
 
@@ -140,6 +153,47 @@ public class ZoomService : IZoomService
             _logger.LogError(ex, "Error creating Zoom meeting");
             return (null, null, null);
         }
+    }
+
+    /// <summary>Lấy <c>id</c> từ <c>GET /users/me</c> (cache trong lifetime service) để dùng cho <c>POST /users/{id}/meetings</c>.</summary>
+    private async Task<string?> GetOrFetchZoomHostUserIdAsync(CancellationToken cancellationToken)
+    {
+        lock (_zoomHostUserIdCacheLock)
+        {
+            if (!string.IsNullOrEmpty(_cachedZoomHostUserId))
+                return _cachedZoomHostUserId;
+        }
+
+        var response = await _httpClient.GetAsync("users/me", cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError(
+                "Zoom GET users/me failed: {Status} {Body}",
+                response.StatusCode,
+                body);
+            return null;
+        }
+
+        var me = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
+        if (!me.TryGetProperty("id", out var idEl))
+        {
+            _logger.LogError("Zoom users/me response missing id");
+            return null;
+        }
+
+        var userId = idEl.GetString();
+        var email = me.TryGetProperty("email", out var emailEl) && emailEl.ValueKind == JsonValueKind.String
+            ? emailEl.GetString()
+            : null;
+        _logger.LogInformation("Zoom host resolved. UserId: {UserId}, Email: {Email}", userId, email);
+
+        lock (_zoomHostUserIdCacheLock)
+        {
+            _cachedZoomHostUserId = userId;
+        }
+
+        return userId;
     }
 
     public async Task<string> GetAccessToken(CancellationToken cancellationToken)

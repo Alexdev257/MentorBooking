@@ -43,6 +43,9 @@ public class ZoomController : ControllerBase
     /// Events: endpoint.url_validation, meeting.*, <c>recording.completed</c>, <c>recording.transcript_completed</c>, và biến thể tên event transcript khác từ Zoom.
     /// </summary>
     [HttpPost("wh")]
+    // Zoom recording/transcript webhook JSON can be relatively large (many recording/transcript entries).
+    // Add a higher request body limit to avoid rejecting before hitting our controller.
+    [RequestSizeLimit(100 * 1024 * 1024)]
     [AllowAnonymous]
     public Task<IActionResult> HandleWebhooks([FromBody] ZoomWebhookRequest? request, CancellationToken cancellationToken)
         => HandleWebhooksCore(request, cancellationToken);
