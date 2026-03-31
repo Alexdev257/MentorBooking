@@ -26,6 +26,7 @@ public class ZoomWebhookPayload
 public class ZoomWebhookObject
 {
     [JsonPropertyName("id")]
+    [JsonConverter(typeof(ZoomJsonStringOrNumberConverter))]
     public string? Id { get; set; }
 
     /// <summary>Instance UUID for this meeting occurrence; required for <c>GET /past_meetings/{{uuid}}/participants</c>.</summary>
@@ -39,6 +40,7 @@ public class ZoomWebhookObject
     public DateTime? StartTime { get; set; }
 
     [JsonPropertyName("host_id")]
+    [JsonConverter(typeof(ZoomJsonStringOrNumberConverter))]
     public string? HostId { get; set; }
 
     [JsonPropertyName("recording_files")]
@@ -48,9 +50,11 @@ public class ZoomWebhookObject
 public class ZoomRecordingFile
 {
     [JsonPropertyName("id")]
+    [JsonConverter(typeof(ZoomJsonStringOrNumberConverter))]
     public string? Id { get; set; }
 
     [JsonPropertyName("meeting_id")]
+    [JsonConverter(typeof(ZoomJsonStringOrNumberConverter))]
     public string? MeetingId { get; set; }
 
     [JsonPropertyName("download_url")]
