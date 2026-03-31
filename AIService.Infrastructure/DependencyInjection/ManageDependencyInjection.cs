@@ -27,6 +27,7 @@ namespace AIService.Infrastructure.DependencyInjection
 
             services.AddDatabase(configuration);
             services.AddScopedInterface();
+            services.AddGroqTranscription();
             services.AddAutoMapper(typeof(AIServiceMappingProfile));
             services.AddMediatRInfrastructure(configuration);
             services.AddMessageBus(configuration);
@@ -59,8 +60,16 @@ namespace AIService.Infrastructure.DependencyInjection
             service.AddScoped<IAIUnitOfWork, UnitOfWork>();
             service.AddScoped<IFileStorageService, LocalFileStorageService>();
             service.AddScoped<IMediaProcessingService, FfmpegMediaProcessingService>();
-            service.AddScoped<ITranscriptionService, WhisperTranscriptionService>();
             service.AddScoped<ITranscriptService, TranscriptService>();
+        }
+
+        private static void AddGroqTranscription(this IServiceCollection service)
+        {
+            service.AddHttpClient<ITranscriptionService, GroqTranscriptionService>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.groq.com/");
+                client.Timeout = TimeSpan.FromMinutes(10);
+            });
         }
 
         private static void AddMediatRInfrastructure(this IServiceCollection service, IConfiguration config)

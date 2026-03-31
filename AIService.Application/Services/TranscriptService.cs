@@ -17,21 +17,14 @@ public class TranscriptService : ITranscriptService
     private readonly IAIUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly IFileStorageService _fileStorage;
-    private readonly IMediaProcessingService _mediaProcessing;
     private readonly ITranscriptionService _transcription;
     private readonly ITranscriptSummarizationService _summarization;
     private readonly ILogger<TranscriptService> _logger;
-
-    private static readonly HashSet<string> VideoMimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"
-    };
 
     public TranscriptService(
         IAIUnitOfWork unitOfWork,
         IMapper mapper,
         IFileStorageService fileStorage,
-        IMediaProcessingService mediaProcessing,
         ITranscriptionService transcription,
         ITranscriptSummarizationService summarization,
         ILogger<TranscriptService> logger)
@@ -39,7 +32,6 @@ public class TranscriptService : ITranscriptService
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _fileStorage = fileStorage;
-        _mediaProcessing = mediaProcessing;
         _transcription = transcription;
         _summarization = summarization;
         _logger = logger;
@@ -101,14 +93,7 @@ public class TranscriptService : ITranscriptService
             _unitOfWork.Transcripts.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var inputPath = entity.OriginalFilePath!;
-            if (IsVideo(entity.MimeType))
-            {
-                entity.ExtractedAudioPath = await _mediaProcessing.ExtractAudioToWavAsync(inputPath, cancellationToken);
-                inputPath = entity.ExtractedAudioPath;
-            }
-
-            var result = await _transcription.TranscribeAsync(inputPath, cancellationToken);
+            var result = await _transcription.TranscribeAsync(entity.OriginalFilePath!, cancellationToken);
             entity.RawText = result.FullText;
             entity.CleanText = result.FullText;
             entity.Status = TranscriptStatus.Completed;
@@ -375,5 +360,4 @@ public class TranscriptService : ITranscriptService
         }
     }
 
-    private static bool IsVideo(string? contentType) => contentType != null && VideoMimeTypes.Contains(contentType);
 }
