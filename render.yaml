@@ -88,6 +88,10 @@ services:
       # Firebase Storage (mirror Zoom recording/transcript so users can watch without Zoom keys)
       - key: Firebase__CredentialJson
         sync: false
+      - key: Firebase__CredentialJsonBase64
+        sync: false
+      - key: Firebase__CredentialPath
+        sync: false
       - key: Firebase__BucketName
         value: mentorbookingproject.firebasestorage.app
 
