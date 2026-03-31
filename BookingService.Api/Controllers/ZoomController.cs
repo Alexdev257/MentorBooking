@@ -234,12 +234,14 @@ public class ZoomController : ControllerBase
             return;
         }
 
-        var recordingUrl = videoFile != null ? PickZoomPlayOrDownloadUrl(videoFile) : null;
-        var transcriptUrl = transcriptFile != null ? PickZoomPlayOrDownloadUrl(transcriptFile) : null;
+        var recordingDownloadUrl = videoFile != null ? PickZoomDownloadUrl(videoFile) : null;
+        var transcriptDownloadUrl = transcriptFile != null ? PickZoomDownloadUrl(transcriptFile) : null;
+        var recordingDisplayUrl = videoFile != null ? PickZoomPlayOrDownloadUrl(videoFile) : null;
+        var transcriptDisplayUrl = transcriptFile != null ? PickZoomPlayOrDownloadUrl(transcriptFile) : null;
 
-        if (string.IsNullOrWhiteSpace(recordingUrl) && string.IsNullOrWhiteSpace(transcriptUrl))
+        if (string.IsNullOrWhiteSpace(recordingDownloadUrl) && string.IsNullOrWhiteSpace(transcriptDownloadUrl))
         {
-            _logger.LogWarning("Recording completed for booking {BookingId} but no play/download URL for video or transcript", booking.Id);
+            _logger.LogWarning("Recording completed for booking {BookingId} but no download URL for video or transcript", booking.Id);
             return;
         }
 
@@ -251,12 +253,12 @@ public class ZoomController : ControllerBase
         var transcriptContentType = transcriptFile != null ? MapZoomFileTypeToContentType(transcriptFile.FileType) : null;
 
         string? firebaseRecordingUrl = null;
-        if (!string.IsNullOrWhiteSpace(recordingUrl) && videoFile != null)
+        if (!string.IsNullOrWhiteSpace(recordingDownloadUrl) && videoFile != null)
         {
             firebaseRecordingUrl = await _recordingMirror.TryMirrorToFirebaseAsync(
                 booking.Id,
                 meetingId,
-                recordingUrl.Trim(),
+                recordingDownloadUrl.Trim(),
                 "video",
                 ExtensionForZoomRecordingFile(videoFile.FileType),
                 contentType ?? "video/mp4",
@@ -264,20 +266,20 @@ public class ZoomController : ControllerBase
         }
 
         string? firebaseTranscriptUrl = null;
-        if (!string.IsNullOrWhiteSpace(transcriptUrl) && transcriptFile != null)
+        if (!string.IsNullOrWhiteSpace(transcriptDownloadUrl) && transcriptFile != null)
         {
             firebaseTranscriptUrl = await _recordingMirror.TryMirrorToFirebaseAsync(
                 booking.Id,
                 meetingId,
-                transcriptUrl.Trim(),
+                transcriptDownloadUrl.Trim(),
                 "transcript",
                 ".vtt",
                 transcriptContentType ?? "text/vtt",
                 cancellationToken);
         }
 
-        var displayRecordingUrl = firebaseRecordingUrl ?? recordingUrl;
-        var displayTranscriptUrl = firebaseTranscriptUrl ?? transcriptUrl;
+        var displayRecordingUrl = firebaseRecordingUrl ?? recordingDisplayUrl;
+        var displayTranscriptUrl = firebaseTranscriptUrl ?? transcriptDisplayUrl;
 
         var noteLines = new List<string>();
         if (!string.IsNullOrWhiteSpace(displayRecordingUrl))
@@ -360,6 +362,9 @@ public class ZoomController : ControllerBase
             _ => false,
         };
     }
+
+    private static string? PickZoomDownloadUrl(ZoomRecordingFile file) =>
+        string.IsNullOrWhiteSpace(file.DownloadUrl) ? null : file.DownloadUrl;
 
     private static string? PickZoomPlayOrDownloadUrl(ZoomRecordingFile file) =>
         !string.IsNullOrWhiteSpace(file.PlayUrl) ? file.PlayUrl : file.DownloadUrl;

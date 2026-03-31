@@ -71,7 +71,8 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
         try
         {
             var token = await _zoomService.GetAccessToken(cancellationToken);
-            using var request = new HttpRequestMessage(HttpMethod.Get, zoomDownloadUrl.Trim());
+            var authorizedDownloadUrl = BuildZoomAuthorizedDownloadUrl(zoomDownloadUrl.Trim(), token);
+            using var request = new HttpRequestMessage(HttpMethod.Get, authorizedDownloadUrl);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             using var response = await _httpClient.SendAsync(
@@ -87,6 +88,22 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
                     response.StatusCode,
                     bookingId,
                     body);
+                return null;
+            }
+
+            // Some Zoom links can return HTML/login pages (status 200) if auth is missing after redirects.
+            // Reject obvious non-media responses to avoid uploading invalid files that appear as 0:00 videos.
+            var actualContentType = response.Content.Headers.ContentType?.MediaType;
+            if (IsLikelyNonMediaResponse(actualContentType, contentType))
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogError(
+                    "Zoom download returned non-media content for booking {BookingId}. Expected={ExpectedType}, Actual={ActualType}, Url={Url}, BodyStart={BodyStart}",
+                    bookingId,
+                    contentType,
+                    actualContentType ?? "(null)",
+                    authorizedDownloadUrl,
+                    body.Length > 300 ? body[..300] : body);
                 return null;
             }
 
@@ -150,6 +167,35 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
         if (!e.StartsWith('.'))
             e = "." + e;
         return e;
+    }
+
+    private static string BuildZoomAuthorizedDownloadUrl(string baseUrl, string accessToken)
+    {
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            return baseUrl;
+        if (string.IsNullOrWhiteSpace(accessToken))
+            return baseUrl;
+        if (baseUrl.Contains("access_token=", StringComparison.OrdinalIgnoreCase))
+            return baseUrl;
+
+        var separator = baseUrl.Contains('?') ? "&" : "?";
+        return $"{baseUrl}{separator}access_token={Uri.EscapeDataString(accessToken)}";
+    }
+
+    private static bool IsLikelyNonMediaResponse(string? actualContentType, string? expectedContentType)
+    {
+        if (string.IsNullOrWhiteSpace(actualContentType))
+            return false;
+
+        var actual = actualContentType.Trim().ToLowerInvariant();
+        if (actual.StartsWith("video/") || actual.StartsWith("audio/") || actual.StartsWith("text/vtt"))
+            return false;
+
+        var expected = (expectedContentType ?? string.Empty).Trim().ToLowerInvariant();
+        if (expected.StartsWith("video/") || expected.StartsWith("audio/"))
+            return actual.StartsWith("text/") || actual.Contains("json") || actual.Contains("html");
+
+        return false;
     }
 
     /// <summary>JSON → Base64 → đường file (nhiều biến env) → GOOGLE_APPLICATION_CREDENTIALS → quét /etc/secrets/*.json.</summary>
