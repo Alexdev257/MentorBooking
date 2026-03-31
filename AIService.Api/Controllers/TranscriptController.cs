@@ -117,4 +117,26 @@ public class TranscriptController : ControllerBase
         var result = await _transcriptService.GetListAsync(pageNumber, pageSize, cancellationToken);
         return Ok(result);
     }
+
+    [HttpPost("ingest/zoom-audio")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(CommonResponse<ZoomAudioTranscriptIngestResponseDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(CommonResponse<ZoomAudioTranscriptIngestResponseDto>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> IngestZoomAudioTranscript(
+        [FromBody] ZoomAudioTranscriptIngestRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+        {
+            var invalid = new CommonResponse<ZoomAudioTranscriptIngestResponseDto>();
+            FillValidationErrors(invalid, ModelState);
+            return BadRequest(invalid);
+        }
+
+        var userId = GetUserIdFromClaim();
+        var result = await _transcriptService.IngestZoomAudioTranscriptAsync(request, userId, cancellationToken);
+        if (!result.IsSuccess)
+            return BadRequest(result);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
 }

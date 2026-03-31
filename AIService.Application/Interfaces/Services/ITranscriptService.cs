@@ -11,4 +11,10 @@ public interface ITranscriptService
 
     /// <summary>Runs Gemini summarization for an existing transcript and persists a MeetingSummary row (MeetingId = transcript id).</summary>
     Task<CommonResponse<TranscriptSummaryDto>> SummarizeAsync(Guid transcriptId, Guid? userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Persist transcript text/segments already produced by Zoom audio transcript.</summary>
+    Task<CommonResponse<ZoomAudioTranscriptIngestResponseDto>> IngestZoomAudioTranscriptAsync(
+        ZoomAudioTranscriptIngestRequestDto request,
+        Guid? userId,
+        CancellationToken cancellationToken = default);
 }

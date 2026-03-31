@@ -19,7 +19,7 @@ public class AudioTranscript : AuditableEntity
     public string? RawText { get; set; }
     public string? CleanText { get; set; }
 
-    public TranscriptStatus Status { get; set; }
+    public TranscriptStatus? Status { get; set; } = null;
     public string? ErrorMessage { get; set; }
     public DateTime? ProcessedAtUtc { get; set; }
     public virtual ICollection<AudioTranscriptSegment> Segments { get; set; } = new List<AudioTranscriptSegment>();
