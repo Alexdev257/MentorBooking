@@ -10,7 +10,6 @@ namespace AIService.Api.Controllers;
 
 [ApiController]
 [Route("api/transcripts")]
-[Authorize]
 public class TranscriptController : ControllerBase
 {
     private readonly ITranscriptService _transcriptService;
@@ -97,6 +96,7 @@ public class TranscriptController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(CommonResponse<TranscriptDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
