@@ -21,6 +21,8 @@ public class TranscriptProcessingService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Wait for the application to fully start before polling
+        await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
         _logger.LogInformation("TranscriptProcessingService started");
 
         while (!stoppingToken.IsCancellationRequested)
