@@ -212,6 +212,10 @@ public class ZoomController : ControllerBase
     private async Task HandleRecordingCompleted(ZoomWebhookRequest request, string meetingId, CancellationToken cancellationToken)
     {
         var recordings = request.Payload.Object?.RecordingFiles;
+        var zoomDownloadToken = FirstNonEmpty(
+            request.DownloadToken,
+            request.Payload.DownloadToken,
+            request.Payload.Object?.DownloadToken);
 
         if (recordings == null || recordings.Count == 0)
         {
@@ -259,6 +263,7 @@ public class ZoomController : ControllerBase
                 booking.Id,
                 meetingId,
                 recordingDownloadUrl.Trim(),
+                zoomDownloadToken,
                 "video",
                 ExtensionForZoomRecordingFile(videoFile.FileType),
                 contentType ?? "video/mp4",
@@ -272,6 +277,7 @@ public class ZoomController : ControllerBase
                 booking.Id,
                 meetingId,
                 transcriptDownloadUrl.Trim(),
+                zoomDownloadToken,
                 "transcript",
                 ".vtt",
                 transcriptContentType ?? "text/vtt",
@@ -368,6 +374,17 @@ public class ZoomController : ControllerBase
 
     private static string? PickZoomPlayOrDownloadUrl(ZoomRecordingFile file) =>
         !string.IsNullOrWhiteSpace(file.PlayUrl) ? file.PlayUrl : file.DownloadUrl;
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return null;
+    }
 
     private static string? MapZoomFileTypeToContentType(string? fileType)
     {

@@ -12,6 +12,10 @@ public class ZoomWebhookRequest
 
     [JsonPropertyName("payload")]
     public ZoomWebhookPayload Payload { get; set; } = new();
+
+    // Some recording webhooks include a short-lived token at root level.
+    [JsonPropertyName("download_token")]
+    public string? DownloadToken { get; set; }
 }
 
 public class ZoomWebhookPayload
@@ -21,6 +25,10 @@ public class ZoomWebhookPayload
 
     [JsonPropertyName("object")]
     public ZoomWebhookObject? Object { get; set; }
+
+    // Some Zoom variants place download_token in payload.
+    [JsonPropertyName("download_token")]
+    public string? DownloadToken { get; set; }
 }
 
 public class ZoomWebhookObject
@@ -45,6 +53,10 @@ public class ZoomWebhookObject
 
     [JsonPropertyName("recording_files")]
     public List<ZoomRecordingFile>? RecordingFiles { get; set; }
+
+    // Some Zoom variants place download_token inside payload.object.
+    [JsonPropertyName("download_token")]
+    public string? DownloadToken { get; set; }
 }
 
 public class ZoomRecordingFile

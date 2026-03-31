@@ -14,6 +14,7 @@ public interface IMeetingRecordingCloudMirrorService
         Guid bookingId,
         string zoomMeetingNumericId,
         string zoomDownloadUrl,
+        string? zoomDownloadToken,
         string storageFileLabel,
         string extension,
         string contentType,
