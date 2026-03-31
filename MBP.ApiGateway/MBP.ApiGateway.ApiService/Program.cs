@@ -98,7 +98,20 @@ app.Use(async (context, next) =>
         feature.MaxRequestBodySize = 50 * 1024 * 1024;
     }
 
+    // Help debug "Zoom recording.* webhook not arriving":
+    // log only for Zoom webhook endpoint so we can see if requests reach the gateway and what status is returned.
+    var isZoomWebhook = context.Request.Path.StartsWithSegments("/api/zoom/wh", StringComparison.OrdinalIgnoreCase);
+    if (isZoomWebhook)
+    {
+        Console.WriteLine($"[ApiGateway] Incoming Zoom webhook: {context.Request.Method} {context.Request.Path}");
+    }
+
     await next();
+
+    if (isZoomWebhook)
+    {
+        Console.WriteLine($"[ApiGateway] Zoom webhook response: HTTP {context.Response.StatusCode}");
+    }
 });
 
 app.UseSwagger();
