@@ -31,11 +31,12 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
         _bucketName = configuration["Firebase:BucketName"] ?? string.Empty;
         _httpClient.Timeout = TimeSpan.FromMinutes(30);
 
-        var credential = TryLoadGoogleCredential(configuration);
+        var credential = TryLoadGoogleCredential();
         if (credential == null)
         {
             _logger.LogWarning(
-                "MeetingRecordingCloudMirror: Firebase chưa cấu hình (Firebase__BucketName + credential). Chỉ lưu URL Zoom.");
+                "MeetingRecordingCloudMirror: không load được Firebase credential (kiểm tra Firebase__CredentialJson hoặc file tại Firebase__CredentialPath / /etc/secrets). BucketName empty={BucketEmpty}. Chỉ lưu URL Zoom.",
+                string.IsNullOrWhiteSpace(_bucketName));
             _storageClient = null;
             return;
         }
@@ -150,27 +151,91 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
     }
 
     /// <summary>Cùng thứ tự ưu tiên credential như AuthService FirebaseService (JSON, Base64, path, GOOGLE_APPLICATION_CREDENTIALS).</summary>
-    private static GoogleCredential? TryLoadGoogleCredential(IConfiguration configuration)
+    private GoogleCredential? TryLoadGoogleCredential()
     {
-        var json = configuration["Firebase:CredentialJson"];
+        var json = _configuration["Firebase:CredentialJson"];
         if (!string.IsNullOrWhiteSpace(json))
-            return GoogleCredential.FromJson(json.Trim());
-
-        var b64 = configuration["Firebase:CredentialJsonBase64"];
-        if (!string.IsNullOrWhiteSpace(b64))
         {
-            var bytes = Convert.FromBase64String(b64.Trim());
-            return GoogleCredential.FromJson(Encoding.UTF8.GetString(bytes));
+            try
+            {
+                return GoogleCredential.FromJson(json.Trim());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Firebase CredentialJson không parse được (thiếu escape / JSON hỏng?). Thử nguồn khác.");
+            }
         }
 
-        var credentialPath = configuration["Firebase:CredentialPath"];
-        if (!string.IsNullOrWhiteSpace(credentialPath) && File.Exists(credentialPath))
-            return GoogleCredential.FromFile(credentialPath);
+        var b64 = _configuration["Firebase:CredentialJsonBase64"];
+        if (!string.IsNullOrWhiteSpace(b64))
+        {
+            try
+            {
+                var bytes = Convert.FromBase64String(b64.Trim());
+                return GoogleCredential.FromJson(Encoding.UTF8.GetString(bytes));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Firebase CredentialJsonBase64 không hợp lệ. Thử nguồn khác.");
+            }
+        }
+
+        var credentialPath = _configuration["Firebase:CredentialPath"]?.Trim();
+        if (!string.IsNullOrWhiteSpace(credentialPath))
+        {
+            foreach (var candidate in ResolveCredentialFileCandidates(credentialPath))
+            {
+                if (!File.Exists(candidate))
+                    continue;
+                try
+                {
+                    return GoogleCredential.FromFile(candidate);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Firebase CredentialPath đọc file thất bại: {Path}", candidate);
+                }
+            }
+
+            _logger.LogWarning(
+                "Firebase CredentialPath không tìm thấy file. Đã thử: {Candidates}. Trên Render Secret File, đường dẫn thường là /etc/secrets/&lt;tên file bạn đặt khi tạo secret&gt;.",
+                string.Join(", ", ResolveCredentialFileCandidates(credentialPath)));
+        }
 
         var gac = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
-        if (!string.IsNullOrWhiteSpace(gac) && File.Exists(gac))
-            return GoogleCredential.FromFile(gac);
+        if (!string.IsNullOrWhiteSpace(gac))
+        {
+            if (File.Exists(gac))
+            {
+                try
+                {
+                    return GoogleCredential.FromFile(gac);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "GOOGLE_APPLICATION_CREDENTIALS file lỗi: {Path}", gac);
+                }
+            }
+            else
+            {
+                _logger.LogWarning("GOOGLE_APPLICATION_CREDENTIALS trỏ tới file không tồn tại: {Path}", gac);
+            }
+        }
 
         return null;
+    }
+
+    /// <summary>Render thường mount secret dưới <c>/etc/secrets/</c>; user có thể nhập full path hoặc chỉ tên file.</summary>
+    private static IEnumerable<string> ResolveCredentialFileCandidates(string credentialPath)
+    {
+        var trimmed = credentialPath.Trim();
+        yield return trimmed;
+
+        var fileName = Path.GetFileName(trimmed);
+        if (string.IsNullOrEmpty(fileName))
+            yield break;
+
+        yield return Path.Combine("/etc/secrets", fileName);
+        yield return Path.Combine("/etc/secrets", trimmed.TrimStart('/'));
     }
 }
