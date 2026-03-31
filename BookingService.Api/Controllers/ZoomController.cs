@@ -21,19 +21,22 @@ public class ZoomController : ControllerBase
     private readonly ILogger<ZoomController> _logger;
     private readonly IZoomService _zoomService;
     private readonly IMessageProducer _messageProducer;
+    private readonly IMeetingRecordingCloudMirrorService _recordingMirror;
 
     public ZoomController(
         IBookingUnitOfWork unitOfWork,
         IConfiguration configuration,
         ILogger<ZoomController> logger,
         IZoomService zoomService,
-        IMessageProducer messageProducer)
+        IMessageProducer messageProducer,
+        IMeetingRecordingCloudMirrorService recordingMirror)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
         _logger = logger;
         _zoomService = zoomService;
         _messageProducer = messageProducer;
+        _recordingMirror = recordingMirror;
     }
 
     /// <summary>
@@ -240,23 +243,6 @@ public class ZoomController : ControllerBase
             return;
         }
 
-        var noteLines = new List<string>();
-        if (!string.IsNullOrWhiteSpace(recordingUrl))
-            noteLines.Add($"[Zoom Recording]: {recordingUrl.Trim()}");
-        if (!string.IsNullOrWhiteSpace(transcriptUrl))
-            noteLines.Add($"[Zoom Transcript]: {transcriptUrl.Trim()}");
-
-        _logger.LogInformation(
-            "Recording completed for booking {BookingId}. Recording: {HasRec} Transcript: {HasTr}",
-            booking.Id,
-            recordingUrl != null,
-            transcriptUrl != null);
-
-        var currentNotes = booking.Notes ?? string.Empty;
-        booking.Notes = $"{currentNotes}\n{string.Join("\n", noteLines)}".Trim();
-        _unitOfWork.Bookings.UpdateAsync(booking);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
         var contentType = videoFile != null ? MapZoomFileTypeToContentType(videoFile.FileType) : null;
         int? durationSeconds = null;
         if (videoFile?.RecordingEnd is { } end && videoFile.RecordingStart is { } start && end > start)
@@ -264,17 +250,78 @@ public class ZoomController : ControllerBase
 
         var transcriptContentType = transcriptFile != null ? MapZoomFileTypeToContentType(transcriptFile.FileType) : null;
 
+        string? firebaseRecordingUrl = null;
+        if (!string.IsNullOrWhiteSpace(recordingUrl) && videoFile != null)
+        {
+            firebaseRecordingUrl = await _recordingMirror.TryMirrorToFirebaseAsync(
+                booking.Id,
+                meetingId,
+                recordingUrl.Trim(),
+                "video",
+                ExtensionForZoomRecordingFile(videoFile.FileType),
+                contentType ?? "video/mp4",
+                cancellationToken);
+        }
+
+        string? firebaseTranscriptUrl = null;
+        if (!string.IsNullOrWhiteSpace(transcriptUrl) && transcriptFile != null)
+        {
+            firebaseTranscriptUrl = await _recordingMirror.TryMirrorToFirebaseAsync(
+                booking.Id,
+                meetingId,
+                transcriptUrl.Trim(),
+                "transcript",
+                ".vtt",
+                transcriptContentType ?? "text/vtt",
+                cancellationToken);
+        }
+
+        var displayRecordingUrl = firebaseRecordingUrl ?? recordingUrl;
+        var displayTranscriptUrl = firebaseTranscriptUrl ?? transcriptUrl;
+
+        var noteLines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(displayRecordingUrl))
+            noteLines.Add($"[Meeting Recording]: {displayRecordingUrl.Trim()}");
+        if (!string.IsNullOrWhiteSpace(displayTranscriptUrl))
+            noteLines.Add($"[Meeting Transcript]: {displayTranscriptUrl.Trim()}");
+
+        _logger.LogInformation(
+            "Recording completed for booking {BookingId}. Recording: {HasRec} Transcript: {HasTr} FirebaseVideo: {FbV} FirebaseTr: {FbT}",
+            booking.Id,
+            displayRecordingUrl != null,
+            displayTranscriptUrl != null,
+            firebaseRecordingUrl != null,
+            firebaseTranscriptUrl != null);
+
+        var currentNotes = booking.Notes ?? string.Empty;
+        booking.Notes = $"{currentNotes}\n{string.Join("\n", noteLines)}".Trim();
+        _unitOfWork.Bookings.UpdateAsync(booking);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
         await _messageProducer.PublishAsync(
             new ZoomRecordingCompletedEvent(
                 booking.Id,
-                recordingUrl?.Trim(),
+                displayRecordingUrl?.Trim(),
                 contentType,
                 durationSeconds,
                 videoFile?.FileSize,
-                transcriptUrl?.Trim(),
+                displayTranscriptUrl?.Trim(),
                 transcriptContentType,
                 transcriptFile?.FileSize),
             cancellationToken);
+    }
+
+    private static string ExtensionForZoomRecordingFile(string? fileType)
+    {
+        if (string.IsNullOrWhiteSpace(fileType))
+            return ".mp4";
+        return fileType.Trim().ToUpperInvariant() switch
+        {
+            "MP4" => ".mp4",
+            "M4A" => ".m4a",
+            "MP3" => ".mp3",
+            _ => ".mp4",
+        };
     }
 
     /// <summary>MP4 → M4A → first file that is not transcript/chat/thumbnail sidecar.</summary>

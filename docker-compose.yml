@@ -74,6 +74,10 @@ services:
       Zoom__ClientId: ${ZOOM_CLIENT_ID:-}
       Zoom__ClientSecret: ${ZOOM_CLIENT_SECRET:-}
       Zoom__SecretToken: ${ZOOM_SECRET_TOKEN:-}
+      Firebase__BucketName: ${FIREBASE_BUCKET:-}
+      Firebase__CredentialJson: ${FIREBASE_CREDENTIAL_JSON:-}
+      Firebase__CredentialJsonBase64: ${FIREBASE_CREDENTIAL_JSON_BASE64:-}
+      Firebase__CredentialPath: ${FIREBASE_CREDENTIAL_PATH:-}
       RabbitMQ__Host: ${RABBITMQ_HOST:-armadillo-01.rmq.cloudamqp.com}
       RabbitMQ__VirtualHost: ${RABBITMQ_VHOST:-hnlprtvu}
       RabbitMQ__Username: ${RABBITMQ_USER:-hnlprtvu}

@@ -85,6 +85,11 @@ services:
         sync: false
       - key: Zoom__SecretToken
         sync: false
+      # Firebase Storage (mirror Zoom recording/transcript so users can watch without Zoom keys)
+      - key: Firebase__CredentialJson
+        sync: false
+      - key: Firebase__BucketName
+        value: mentorbookingproject.firebasestorage.app
 
   # ==================== MEETING SERVICE ====================
   - type: web
