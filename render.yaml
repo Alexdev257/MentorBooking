@@ -77,6 +77,11 @@ services:
           name: auth-service
           type: web
           envVarKey: RENDER_EXTERNAL_URL
+      - key: ServiceUrls__AIService
+        fromService:
+          name: ai-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
       - key: Zoom__AccountId
         sync: false
       - key: Zoom__ClientId
@@ -85,7 +90,7 @@ services:
         sync: false
       - key: Zoom__SecretToken
         sync: false
-      # Firebase Storage (mirror Zoom recording/transcript so users can watch without Zoom keys)
+      # Firebase Storage (mirror Zoom recording video so users can watch without Zoom keys)
       - key: Firebase__CredentialJson
         sync: false
       - key: Firebase__CredentialJsonBase64

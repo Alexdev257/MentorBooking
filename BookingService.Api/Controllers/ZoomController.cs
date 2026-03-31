@@ -22,6 +22,7 @@ public class ZoomController : ControllerBase
     private readonly IZoomService _zoomService;
     private readonly IMessageProducer _messageProducer;
     private readonly IMeetingRecordingCloudMirrorService _recordingMirror;
+    private readonly IZoomAudioTranscriptIngestionService _zoomAudioTranscriptIngestion;
 
     public ZoomController(
         IBookingUnitOfWork unitOfWork,
@@ -29,7 +30,8 @@ public class ZoomController : ControllerBase
         ILogger<ZoomController> logger,
         IZoomService zoomService,
         IMessageProducer messageProducer,
-        IMeetingRecordingCloudMirrorService recordingMirror)
+        IMeetingRecordingCloudMirrorService recordingMirror,
+        IZoomAudioTranscriptIngestionService zoomAudioTranscriptIngestion)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
@@ -37,6 +39,7 @@ public class ZoomController : ControllerBase
         _zoomService = zoomService;
         _messageProducer = messageProducer;
         _recordingMirror = recordingMirror;
+        _zoomAudioTranscriptIngestion = zoomAudioTranscriptIngestion;
     }
 
     /// <summary>
@@ -290,36 +293,36 @@ public class ZoomController : ControllerBase
                 cancellationToken);
         }
 
-        string? firebaseTranscriptUrl = null;
+        Guid? aiTranscriptId = null;
         if (!string.IsNullOrWhiteSpace(transcriptDownloadUrl) && transcriptFile != null)
         {
-            firebaseTranscriptUrl = await _recordingMirror.TryMirrorToFirebaseAsync(
+            aiTranscriptId = await _zoomAudioTranscriptIngestion.IngestZoomAudioTranscriptAsync(
                 booking.Id,
                 meetingId,
                 transcriptDownloadUrl.Trim(),
                 zoomDownloadToken,
-                "transcript",
-                ".vtt",
+                transcriptFile.Id,
                 transcriptContentType ?? "text/vtt",
+                transcriptFile.FileSize,
                 cancellationToken);
         }
 
         var displayRecordingUrl = firebaseRecordingUrl ?? recordingDisplayUrl;
-        var displayTranscriptUrl = firebaseTranscriptUrl ?? transcriptDisplayUrl;
+        var displayTranscriptUrl = transcriptDisplayUrl;
 
         var noteLines = new List<string>();
         if (!string.IsNullOrWhiteSpace(displayRecordingUrl))
             noteLines.Add($"[Meeting Recording]: {displayRecordingUrl.Trim()}");
-        if (!string.IsNullOrWhiteSpace(displayTranscriptUrl))
-            noteLines.Add($"[Meeting Transcript]: {displayTranscriptUrl.Trim()}");
+        if (aiTranscriptId != null)
+            noteLines.Add($"[AI Audio Transcript Id]: {aiTranscriptId}");
 
         _logger.LogInformation(
-            "Recording completed for booking {BookingId}. Recording: {HasRec} Transcript: {HasTr} FirebaseVideo: {FbV} FirebaseTr: {FbT}",
+            "Recording completed for booking {BookingId}. Recording: {HasRec} Transcript: {HasTr} FirebaseVideo: {FbV} TranscriptInAi: {AiTr}",
             booking.Id,
             displayRecordingUrl != null,
             displayTranscriptUrl != null,
             firebaseRecordingUrl != null,
-            firebaseTranscriptUrl != null);
+            aiTranscriptId != null);
 
         var currentNotes = booking.Notes ?? string.Empty;
         booking.Notes = $"{currentNotes}\n{string.Join("\n", noteLines)}".Trim();
@@ -333,9 +336,9 @@ public class ZoomController : ControllerBase
                 contentType,
                 durationSeconds,
                 videoFile?.FileSize,
-                displayTranscriptUrl?.Trim(),
-                transcriptContentType,
-                transcriptFile?.FileSize),
+                null,
+                null,
+                null),
             cancellationToken);
     }
 
@@ -365,7 +368,7 @@ public class ZoomController : ControllerBase
     }
 
     private static ZoomRecordingFile? GetZoomTranscriptFile(List<ZoomRecordingFile> recordings) =>
-        recordings.FirstOrDefault(f => IsZoomNativeTranscriptFile(f.FileType));
+        recordings.FirstOrDefault(f => string.Equals(f.FileType, "AUDIO_TRANSCRIPT", StringComparison.OrdinalIgnoreCase));
 
     private static bool IsZoomNativeTranscriptFile(string? fileType)
     {

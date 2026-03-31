@@ -269,6 +269,69 @@ public class TranscriptService : ITranscriptService
         return response;
     }
 
+    public async Task<CommonResponse<ZoomAudioTranscriptIngestResponseDto>> IngestZoomAudioTranscriptAsync(
+        ZoomAudioTranscriptIngestRequestDto request,
+        Guid? userId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = new CommonResponse<ZoomAudioTranscriptIngestResponseDto>();
+
+        if (string.IsNullOrWhiteSpace(request.RawText) && string.IsNullOrWhiteSpace(request.CleanText))
+        {
+            response.IsSuccess = false;
+            response.Message = "Transcript text is required.";
+            return response;
+        }
+
+        var cleanText = string.IsNullOrWhiteSpace(request.CleanText) ? request.RawText.Trim() : request.CleanText.Trim();
+        var rawText = string.IsNullOrWhiteSpace(request.RawText) ? cleanText : request.RawText.Trim();
+        var title = string.IsNullOrWhiteSpace(request.Title)
+            ? $"Zoom audio transcript {request.MeetingId}".Trim()
+            : request.Title.Trim();
+
+        var transcript = new AudioTranscript
+        {
+            Id = Guid.NewGuid(),
+            Title = title,
+            SourceType = MediaSourceType.RecordAudio,
+            OriginalFileName = request.SourceFileName,
+            OriginalFilePath = request.SourceUrl,
+            MimeType = request.MimeType,
+            FileSizeBytes = request.FileSizeBytes,
+            RawText = rawText,
+            CleanText = cleanText,
+            Status = (TranscriptStatus)3,
+            ProcessedAtUtc = DateTime.UtcNow,
+            CreatedBy = userId
+        };
+
+        await _unitOfWork.Transcripts.AddAsync(transcript);
+
+        foreach (var seg in request.Segments.OrderBy(s => s.StartSeconds))
+        {
+            if (string.IsNullOrWhiteSpace(seg.Text))
+                continue;
+
+            var start = seg.StartSeconds < 0 ? 0 : seg.StartSeconds;
+            var end = seg.EndSeconds < start ? start : seg.EndSeconds;
+            await _unitOfWork.TranscriptSegments.AddAsync(new AudioTranscriptSegment
+            {
+                Id = Guid.NewGuid(),
+                AudioTranscriptId = transcript.Id,
+                StartSeconds = start,
+                EndSeconds = end,
+                Text = seg.Text.Trim(),
+                CreatedBy = userId
+            });
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        response.IsSuccess = true;
+        response.Message = "Ingest zoom audio transcript thành công.";
+        response.Data = new ZoomAudioTranscriptIngestResponseDto { TranscriptId = transcript.Id };
+        return response;
+    }
+
     private async Task UpsertMeetingSummaryAsync(Guid transcriptId, TranscriptSummaryDto dto, Guid? userId, CancellationToken cancellationToken)
     {
         var existing = await _unitOfWork.MeetingSummaries
