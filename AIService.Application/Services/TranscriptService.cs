@@ -58,7 +58,7 @@ public class TranscriptService : ITranscriptService
             OriginalFileName = fileName,
             MimeType = contentType,
             FileSizeBytes = fileSizeBytes,
-            Status = (TranscriptStatus)1,
+            Status = TranscriptStatus.Queued,
             CreatedBy = userId
         };
 
@@ -78,53 +78,54 @@ public class TranscriptService : ITranscriptService
         await _unitOfWork.Transcripts.AddAsync(entity);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        TranscriptSummaryDto? uploadSummary = null;
+        response.IsSuccess = true;
+        response.Data = new TranscriptUploadResponseDto
+        {
+            Id = entity.Id,
+            Status = (int)TranscriptStatus.Queued,
+            Message = "File đã được upload. Đang chờ xử lý trong background."
+        };
+        response.Message = "Upload thành công. Transcript sẽ được xử lý trong background.";
+        return response;
+    }
+
+    public async Task ProcessTranscriptAsync(Guid transcriptId, CancellationToken cancellationToken = default)
+    {
+        var entity = await _unitOfWork.Transcripts.GetByIdAsync(transcriptId);
+        if (entity == null || entity.Status != TranscriptStatus.Queued)
+            return;
+
         try
         {
-            entity.Status = (TranscriptStatus)2;
+            entity.Status = TranscriptStatus.Processing;
             _unitOfWork.Transcripts.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var inputPath = entity.OriginalFilePath!;
-            if (IsVideo(contentType))
+            if (IsVideo(entity.MimeType))
             {
-                try
-                {
-                    entity.ExtractedAudioPath = await _mediaProcessing.ExtractAudioToWavAsync(inputPath, cancellationToken);
-                    inputPath = entity.ExtractedAudioPath;
-                }
-                catch (Exception ex)
-                {
-                    entity.Status = (TranscriptStatus)4;
-                    entity.ErrorMessage = "Tách audio thất bại: " + ex.Message;
-                    _unitOfWork.Transcripts.UpdateAsync(entity);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
-                    response.IsSuccess = false;
-                    response.Data = new TranscriptUploadResponseDto { Id = entity.Id, Status = (int)entity.Status, Message = entity.ErrorMessage ?? "Lỗi" };
-                    response.Message = "Upload thành công nhưng tách audio thất bại.";
-                    return response;
-                }
+                entity.ExtractedAudioPath = await _mediaProcessing.ExtractAudioToWavAsync(inputPath, cancellationToken);
+                inputPath = entity.ExtractedAudioPath;
             }
 
             var result = await _transcription.TranscribeAsync(inputPath, cancellationToken);
             entity.RawText = result.FullText;
             entity.CleanText = result.FullText;
-            entity.Status = (TranscriptStatus)3;
+            entity.Status = TranscriptStatus.Completed;
             entity.ProcessedAtUtc = DateTime.UtcNow;
             entity.ErrorMessage = null;
 
             foreach (var seg in result.Segments)
             {
-                var segment = new AudioTranscriptSegment
+                await _unitOfWork.TranscriptSegments.AddAsync(new AudioTranscriptSegment
                 {
                     Id = Guid.NewGuid(),
                     AudioTranscriptId = entity.Id,
                     StartSeconds = seg.StartSeconds,
                     EndSeconds = seg.EndSeconds,
                     Text = seg.Text,
-                    CreatedBy = userId
-                };
-                await _unitOfWork.TranscriptSegments.AddAsync(segment);
+                    CreatedBy = entity.CreatedBy
+                });
             }
             _unitOfWork.Transcripts.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -135,10 +136,7 @@ public class TranscriptService : ITranscriptService
                 {
                     var sum = await _summarization.SummarizeAsync(entity.CleanText, entity.Title, cancellationToken);
                     if (sum != null)
-                    {
-                        await UpsertMeetingSummaryAsync(entity.Id, sum, userId, cancellationToken);
-                        uploadSummary = sum;
-                    }
+                        await UpsertMeetingSummaryAsync(entity.Id, sum, entity.CreatedBy, cancellationToken);
                 }
                 catch (Exception sumEx)
                 {
@@ -148,46 +146,21 @@ public class TranscriptService : ITranscriptService
         }
         catch (Exception ex)
         {
-            entity.Status = (TranscriptStatus)4;
+            _logger.LogError(ex, "Processing failed for transcript {TranscriptId}", transcriptId);
+            entity.Status = TranscriptStatus.Failed;
             entity.ErrorMessage = ex.Message;
             _unitOfWork.Transcripts.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
+    }
 
-        var isCompleted = entity.Status == (TranscriptStatus)3;
-        response.IsSuccess = isCompleted;
-        response.Data = new TranscriptUploadResponseDto
-        {
-            Id = entity.Id,
-            Status = (int)entity.Status,
-            Message = isCompleted
-                ? "Upload và transcribe thành công."
-                : entity.Status == (TranscriptStatus)4
-                    ? (entity.ErrorMessage ?? "Lỗi")
-                    : "Đang xử lý.",
-
-            // Trả kết quả transcript ngay trong response upload
-            FullText = isCompleted ? entity.CleanText : null,
-            Segments = isCompleted
-                ? (await _unitOfWork.TranscriptSegments
-                    .FindAsync(s => s.AudioTranscriptId == entity.Id)
-                    .OrderBy(s => s.StartSeconds)
-                    .ToListAsync(cancellationToken))
-                    .Select(s => new TranscriptSegmentDto
-                    {
-                        StartSeconds = s.StartSeconds,
-                        EndSeconds   = s.EndSeconds,
-                        Text         = s.Text
-                    }).ToList()
-                : new List<TranscriptSegmentDto>(),
-            Summary = isCompleted ? uploadSummary : null
-        };
-        response.Message = response.IsSuccess
-            ? "Upload thành công."
-            : entity.Status == (TranscriptStatus)4
-                ? "Upload xong nhưng transcribe lỗi."
-                : "Đang xử lý.";
-        return response;
+    public async Task<List<Guid>> GetQueuedTranscriptIdsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _unitOfWork.Transcripts
+            .FindAsync(t => t.Status == TranscriptStatus.Queued && !t.IsDeleted)
+            .OrderBy(t => t.CreatedAt)
+            .Select(t => t.Id)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<CommonResponse<TranscriptDetailDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -300,7 +273,7 @@ public class TranscriptService : ITranscriptService
             FileSizeBytes = request.FileSizeBytes,
             RawText = rawText,
             CleanText = cleanText,
-            Status = (TranscriptStatus)3,
+            Status = TranscriptStatus.Completed,
             ProcessedAtUtc = DateTime.UtcNow,
             CreatedBy = userId
         };

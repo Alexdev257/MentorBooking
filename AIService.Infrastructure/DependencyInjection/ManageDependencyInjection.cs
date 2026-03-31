@@ -30,6 +30,7 @@ namespace AIService.Infrastructure.DependencyInjection
             services.AddAutoMapper(typeof(AIServiceMappingProfile));
             services.AddMediatRInfrastructure(configuration);
             services.AddMessageBus(configuration);
+            services.AddHostedService<TranscriptProcessingService>();
             return services;
         }
 

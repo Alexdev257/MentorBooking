@@ -17,4 +17,10 @@ public interface ITranscriptService
         ZoomAudioTranscriptIngestRequestDto request,
         Guid? userId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Process a queued transcript: FFmpeg extract → Whisper transcribe → Gemini summarize.</summary>
+    Task ProcessTranscriptAsync(Guid transcriptId, CancellationToken cancellationToken = default);
+
+    /// <summary>Get IDs of transcripts waiting to be processed.</summary>
+    Task<List<Guid>> GetQueuedTranscriptIdsAsync(CancellationToken cancellationToken = default);
 }

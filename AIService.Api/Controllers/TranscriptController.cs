@@ -40,7 +40,7 @@ public class TranscriptController : ControllerBase
     [HttpPost("upload")]
     [AllowAnonymous]
     [Consumes("multipart/form-data")]
-    [ProducesResponseType(typeof(CommonResponse<TranscriptUploadResponseDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(CommonResponse<TranscriptUploadResponseDto>), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(CommonResponse<TranscriptUploadResponseDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [RequestSizeLimit(524_288_000)]
@@ -74,7 +74,7 @@ public class TranscriptController : ControllerBase
 
         if (!result.IsSuccess)
             return BadRequest(result);
-        return StatusCode(StatusCodes.Status201Created, result);
+        return StatusCode(StatusCodes.Status202Accepted, result);
     }
 
     [HttpPost("{id:guid}/summarize")]
