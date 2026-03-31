@@ -51,6 +51,7 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
         Guid bookingId,
         string zoomMeetingNumericId,
         string zoomDownloadUrl,
+        string? zoomDownloadToken,
         string storageFileLabel,
         string extension,
         string contentType,
@@ -70,10 +71,16 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
 
         try
         {
-            var token = await _zoomService.GetAccessToken(cancellationToken);
-            var authorizedDownloadUrl = BuildZoomAuthorizedDownloadUrl(zoomDownloadUrl.Trim(), token);
+            var oauthToken = await _zoomService.GetAccessToken(cancellationToken);
+            var accessToken = FirstNonEmpty(zoomDownloadToken, oauthToken);
+            var authorizedDownloadUrl = BuildZoomAuthorizedDownloadUrl(zoomDownloadUrl.Trim(), accessToken);
             using var request = new HttpRequestMessage(HttpMethod.Get, authorizedDownloadUrl);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            // For Zoom webhook_download URLs, query access_token (download_token) is often required.
+            // Keep Bearer only when we don't have a dedicated download token.
+            if (string.IsNullOrWhiteSpace(zoomDownloadToken))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", oauthToken);
+            }
 
             using var response = await _httpClient.SendAsync(
                 request,
@@ -169,7 +176,7 @@ public class MeetingRecordingCloudMirrorService : IMeetingRecordingCloudMirrorSe
         return e;
     }
 
-    private static string BuildZoomAuthorizedDownloadUrl(string baseUrl, string accessToken)
+    private static string BuildZoomAuthorizedDownloadUrl(string baseUrl, string? accessToken)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
             return baseUrl;
