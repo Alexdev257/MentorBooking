@@ -126,7 +126,27 @@ public class ZoomController : ControllerBase
                 return Ok();
             }
 
-            await HandleRecordingCompleted(request, recordingMeetingId, cancellationToken);
+            // Webhook sender/proxy can abort HTTP request early while mirror/upload is still running.
+            // Use a dedicated processing timeout so large recording uploads are not canceled by RequestAborted.
+            using var processingCts = new CancellationTokenSource(TimeSpan.FromMinutes(15));
+            try
+            {
+                await HandleRecordingCompleted(request, recordingMeetingId, processingCts.Token);
+            }
+            catch (OperationCanceledException oce)
+            {
+                _logger.LogWarning(
+                    oce,
+                    "Recording webhook processing timed out/canceled for meeting {MeetingId}",
+                    recordingMeetingId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Recording webhook processing failed for meeting {MeetingId}",
+                    recordingMeetingId);
+            }
             return Ok();
         }
 
