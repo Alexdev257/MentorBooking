@@ -281,60 +281,37 @@ public class ZoomController : ControllerBase
         if (videoFile.RecordingEnd is { } end && videoFile.RecordingStart is { } start && end > start)
             durationSeconds = (int)(end - start).TotalSeconds;
 
-        // 1. Mirror to Firebase for permanent storage
-        string? firebaseRecordingUrl = null;
-        firebaseRecordingUrl = await _recordingMirror.TryMirrorToFirebaseAsync(
-            booking.Id,
-            meetingId,
-            recordingDownloadUrl.Trim(),
-            zoomDownloadToken,
-            "video",
-            ExtensionForZoomRecordingFile(videoFile.FileType),
-            contentType ?? "video/mp4",
+        await _messageProducer.PublishAsync(
+            new ZoomRecordingProcessingRequestedEvent(
+                booking.Id,
+                meetingId,
+                recordingDownloadUrl.Trim(),
+                zoomDownloadToken,
+                contentType ?? "video/mp4",
+                ExtensionForZoomRecordingFile(videoFile.FileType),
+                durationSeconds,
+                videoFile.FileSize),
             cancellationToken);
 
-        // 2. Trigger Whisper transcription + Gemini summarization via Firebase URL
-        Guid? aiTranscriptId = null;
-        if (!string.IsNullOrWhiteSpace(firebaseRecordingUrl))
-        {
-            aiTranscriptId = await _zoomVideoTranscription.TriggerTranscriptionAsync(
-                booking.Id,
-                firebaseRecordingUrl,
-                $"Zoom recording {meetingId}",
-                contentType,
-                cancellationToken);
-        }
-
-        var displayRecordingUrl = firebaseRecordingUrl ?? recordingDisplayUrl;
+        var displayRecordingUrl = recordingDisplayUrl;
 
         var noteLines = new List<string>();
         if (!string.IsNullOrWhiteSpace(displayRecordingUrl))
             noteLines.Add($"[Meeting Recording]: {displayRecordingUrl.Trim()}");
-        if (aiTranscriptId != null)
-            noteLines.Add($"[AI Audio Transcript Id]: {aiTranscriptId}");
+        noteLines.Add("[Recording Processing]: queued via RabbitMQ (Firebase + AI upload)");
 
         _logger.LogInformation(
-            "Recording completed for booking {BookingId}. FirebaseVideo: {FbV} TranscriptId: {AiTr}",
+            "Recording completed for booking {BookingId}. Queued background processing for Firebase+AI. DurationSeconds={Duration} SizeBytes={Size}",
             booking.Id,
-            firebaseRecordingUrl != null,
-            aiTranscriptId);
+            durationSeconds,
+            videoFile.FileSize);
 
         var currentNotes = booking.Notes ?? string.Empty;
         booking.Notes = $"{currentNotes}\n{string.Join("\n", noteLines)}".Trim();
         _unitOfWork.Bookings.UpdateAsync(booking);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        await _messageProducer.PublishAsync(
-            new ZoomRecordingCompletedEvent(
-                booking.Id,
-                displayRecordingUrl?.Trim(),
-                contentType,
-                durationSeconds,
-                videoFile.FileSize,
-                null,
-                null,
-                null),
-            cancellationToken);
+        // ZoomRecordingCompletedEvent will be published by background worker after Firebase upload succeeds.
     }
 
     private static string ExtensionForZoomRecordingFile(string? fileType)
