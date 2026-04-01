@@ -53,7 +53,7 @@ public class ZoomRecordingProcessingRequestedConsumer : IConsumer<ZoomRecordingP
             msg.ContentType,
             ct);
 
-        var aiOk = await _aiUpload.UploadRecordingToAiAsync(
+        var (aiOk, aiTranscriptId) = await _aiUpload.UploadRecordingToAiAsync(
             msg.BookingId,
             msg.MeetingId,
             msg.RecordingDownloadUrl,
@@ -87,7 +87,13 @@ public class ZoomRecordingProcessingRequestedConsumer : IConsumer<ZoomRecordingP
             if (!string.IsNullOrWhiteSpace(firebaseUrl))
                 lines.Add($"[Meeting Recording]: {firebaseUrl.Trim()}");
             if (aiOk)
+            {
                 lines.Add("[AI Recording Upload]: success");
+                if (!string.IsNullOrWhiteSpace(aiTranscriptId))
+                {
+                    lines.Add($"[AI Audio Transcript Id]: {aiTranscriptId}");
+                }
+            }
 
             if (lines.Count > 0)
             {
@@ -99,10 +105,11 @@ public class ZoomRecordingProcessingRequestedConsumer : IConsumer<ZoomRecordingP
         }
 
         _logger.LogInformation(
-            "Zoom recording processing done BookingId={BookingId} Firebase={Fb} AI={Ai}",
+            "===== ZOOM RECORDING PROCESSING FULLY COMPLETED =====\nBookingId: {BookingId}\nFirebase Uploaded: {Fb}\nAI Uploaded: {Ai}\nTranscriptId: {TranscriptId}\n=====================================================",
             msg.BookingId,
-            firebaseUrl != null,
-            aiOk);
+            firebaseUrl != null ? "YES" : "NO",
+            aiOk ? "YES" : "NO",
+            string.IsNullOrWhiteSpace(aiTranscriptId) ? "N/A" : aiTranscriptId);
     }
 
     private static string RedactUrl(string url)

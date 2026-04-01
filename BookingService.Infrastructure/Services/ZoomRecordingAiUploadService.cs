@@ -32,7 +32,7 @@ public class ZoomRecordingAiUploadService : IZoomRecordingAiUploadService
         _httpClient.BaseAddress = new Uri(aiBase.TrimEnd('/') + "/");
     }
 
-    public async Task<bool> UploadRecordingToAiAsync(
+    public async Task<(bool IsSuccess, string? TranscriptId)> UploadRecordingToAiAsync(
         Guid bookingId,
         string meetingId,
         string recordingDownloadUrl,
@@ -42,7 +42,7 @@ public class ZoomRecordingAiUploadService : IZoomRecordingAiUploadService
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(recordingDownloadUrl))
-            return false;
+            return (false, null);
 
         var uploadKey = BuildUploadKey(bookingId, meetingId, recordingDownloadUrl);
         if (IsDuplicateRecently(uploadKey))
@@ -52,7 +52,7 @@ public class ZoomRecordingAiUploadService : IZoomRecordingAiUploadService
                 bookingId,
                 meetingId,
                 uploadKey);
-            return true;
+            return (true, null);
         }
 
         try
@@ -90,7 +90,7 @@ public class ZoomRecordingAiUploadService : IZoomRecordingAiUploadService
                     downloadResponse.StatusCode,
                     bookingId,
                     body);
-                return false;
+                return (false, null);
             }
 
             await using var zoomStream = await downloadResponse.Content.ReadAsStreamAsync(cancellationToken);
@@ -123,7 +123,7 @@ public class ZoomRecordingAiUploadService : IZoomRecordingAiUploadService
                     response.StatusCode,
                     bookingId,
                     responseBody);
-                return false;
+                return (false, null);
             }
 
             _logger.LogInformation(
@@ -132,12 +132,27 @@ public class ZoomRecordingAiUploadService : IZoomRecordingAiUploadService
                 meetingId,
                 TrimForLog(responseBody, 400));
             RecentUploadKeys[uploadKey] = DateTime.UtcNow;
-            return true;
+
+            string? transcriptId = null;
+            try
+            {
+                var jsonDoc = System.Text.Json.JsonDocument.Parse(responseBody);
+                if (jsonDoc.RootElement.TryGetProperty("data", out var dataEl) && dataEl.TryGetProperty("id", out var idEl))
+                {
+                    transcriptId = idEl.GetString();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not parse AI upload response to extract transcript ID for booking {BookingId}", bookingId);
+            }
+
+            return (true, transcriptId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Upload Zoom mp4 to AIService failed for booking {BookingId}", bookingId);
-            return false;
+            return (false, null);
         }
     }
 
