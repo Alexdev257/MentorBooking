@@ -23,6 +23,7 @@ public class ZoomController : ControllerBase
     private readonly IMessageProducer _messageProducer;
     private readonly IMeetingRecordingCloudMirrorService _recordingMirror;
     private readonly IZoomAudioTranscriptIngestionService _zoomAudioTranscriptIngestion;
+    private readonly IZoomRecordingAiUploadService _zoomRecordingAiUpload;
 
     public ZoomController(
         IBookingUnitOfWork unitOfWork,
@@ -31,7 +32,8 @@ public class ZoomController : ControllerBase
         IZoomService zoomService,
         IMessageProducer messageProducer,
         IMeetingRecordingCloudMirrorService recordingMirror,
-        IZoomAudioTranscriptIngestionService zoomAudioTranscriptIngestion)
+        IZoomAudioTranscriptIngestionService zoomAudioTranscriptIngestion,
+        IZoomRecordingAiUploadService zoomRecordingAiUpload)
     {
         _unitOfWork = unitOfWork;
         _configuration = configuration;
@@ -40,6 +42,7 @@ public class ZoomController : ControllerBase
         _messageProducer = messageProducer;
         _recordingMirror = recordingMirror;
         _zoomAudioTranscriptIngestion = zoomAudioTranscriptIngestion;
+        _zoomRecordingAiUpload = zoomRecordingAiUpload;
     }
 
     /// <summary>
@@ -242,15 +245,37 @@ public class ZoomController : ControllerBase
 
         if (recordings == null || recordings.Count == 0)
         {
-            _logger.LogWarning("Recording completed webhook for meeting {MeetingId} has no recording files", meetingId);
-            return;
+            _logger.LogWarning(
+                "Recording completed webhook for meeting {MeetingId} has no recording files in payload. Fallback to Zoom recordings API.",
+                meetingId);
+            recordings = await _zoomService.GetMeetingRecordingFilesAsync(meetingId, cancellationToken);
+            if (recordings.Count == 0)
+            {
+                _logger.LogWarning("Zoom recordings API also returned no files for meeting {MeetingId}", meetingId);
+                return;
+            }
         }
 
         var videoFile = GetPreferredZoomRecordingFile(recordings);
         var transcriptFile = GetZoomTranscriptFile(recordings);
+        if (transcriptFile == null)
+        {
+            // Transcript files can appear shortly after recording.completed.
+            for (var attempt = 1; attempt <= 3 && transcriptFile == null; attempt++)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(5 * attempt), cancellationToken);
+                var retryFiles = await _zoomService.GetMeetingRecordingFilesAsync(meetingId, cancellationToken);
+                if (retryFiles.Count > 0)
+                {
+                    recordings = retryFiles;
+                    transcriptFile = GetZoomTranscriptFile(recordings);
+                    videoFile ??= GetPreferredZoomRecordingFile(recordings);
+                }
+            }
+        }
         if (videoFile == null && transcriptFile == null)
         {
-            _logger.LogWarning("Recording completed webhook for meeting {MeetingId} has no video/audio or transcript file", meetingId);
+            _logger.LogWarning("Recording completed webhook for meeting {MeetingId} has no video/audio or AUDIO_TRANSCRIPT file", meetingId);
             return;
         }
 
@@ -280,6 +305,7 @@ public class ZoomController : ControllerBase
         var transcriptContentType = transcriptFile != null ? MapZoomFileTypeToContentType(transcriptFile.FileType) : null;
 
         string? firebaseRecordingUrl = null;
+        var pushedRecordingToAi = false;
         if (!string.IsNullOrWhiteSpace(recordingDownloadUrl) && videoFile != null)
         {
             firebaseRecordingUrl = await _recordingMirror.TryMirrorToFirebaseAsync(
@@ -289,6 +315,15 @@ public class ZoomController : ControllerBase
                 zoomDownloadToken,
                 "video",
                 ExtensionForZoomRecordingFile(videoFile.FileType),
+                contentType ?? "video/mp4",
+                cancellationToken);
+
+            pushedRecordingToAi = await _zoomRecordingAiUpload.UploadRecordingToAiAsync(
+                booking.Id,
+                meetingId,
+                recordingDownloadUrl.Trim(),
+                zoomDownloadToken,
+                $"{meetingId}.mp4",
                 contentType ?? "video/mp4",
                 cancellationToken);
         }
@@ -313,15 +348,18 @@ public class ZoomController : ControllerBase
         var noteLines = new List<string>();
         if (!string.IsNullOrWhiteSpace(displayRecordingUrl))
             noteLines.Add($"[Meeting Recording]: {displayRecordingUrl.Trim()}");
+        if (pushedRecordingToAi)
+            noteLines.Add("[AI Recording Upload]: success");
         if (aiTranscriptId != null)
             noteLines.Add($"[AI Audio Transcript Id]: {aiTranscriptId}");
 
         _logger.LogInformation(
-            "Recording completed for booking {BookingId}. Recording: {HasRec} Transcript: {HasTr} FirebaseVideo: {FbV} TranscriptInAi: {AiTr}",
+            "Recording completed for booking {BookingId}. Recording: {HasRec} Transcript: {HasTr} FirebaseVideo: {FbV} RecordingInAi: {AiRec} TranscriptInAi: {AiTr}",
             booking.Id,
             displayRecordingUrl != null,
             displayTranscriptUrl != null,
             firebaseRecordingUrl != null,
+            pushedRecordingToAi,
             aiTranscriptId != null);
 
         var currentNotes = booking.Notes ?? string.Empty;
