@@ -18,15 +18,22 @@ public class TranscriptService : ITranscriptService
     private readonly IAIUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly IFileStorageService _fileStorage;
+    private readonly IMediaProcessingService _mediaProcessing;
     private readonly ITranscriptionService _transcription;
     private readonly ITranscriptSummarizationService _summarization;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<TranscriptService> _logger;
 
+    private static readonly HashSet<string> VideoMimeTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "video/mp4", "video/webm", "video/quicktime", "video/x-msvideo"
+    };
+
     public TranscriptService(
         IAIUnitOfWork unitOfWork,
         IMapper mapper,
         IFileStorageService fileStorage,
+        IMediaProcessingService mediaProcessing,
         ITranscriptionService transcription,
         ITranscriptSummarizationService summarization,
         IHttpClientFactory httpClientFactory,
@@ -35,6 +42,7 @@ public class TranscriptService : ITranscriptService
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _fileStorage = fileStorage;
+        _mediaProcessing = mediaProcessing;
         _transcription = transcription;
         _summarization = summarization;
         _httpClientFactory = httpClientFactory;
@@ -97,7 +105,17 @@ public class TranscriptService : ITranscriptService
             _unitOfWork.Transcripts.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var result = await _transcription.TranscribeAsync(entity.OriginalFilePath!, cancellationToken);
+            var transcribePath = entity.OriginalFilePath!;
+            if (NeedsCompressedAudioForGroq(entity, transcribePath))
+            {
+                _logger.LogInformation("Encoding audio for Groq (avoid 413) for transcript {TranscriptId}", transcriptId);
+                entity.ExtractedAudioPath = await _mediaProcessing.ExtractAudioForTranscriptionAsync(transcribePath, cancellationToken);
+                _unitOfWork.Transcripts.UpdateAsync(entity);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                transcribePath = entity.ExtractedAudioPath;
+            }
+
+            var result = await _transcription.TranscribeAsync(transcribePath, cancellationToken);
             entity.RawText = result.FullText;
             entity.CleanText = result.FullText;
             entity.Status = TranscriptStatus.Completed;
@@ -121,23 +139,18 @@ public class TranscriptService : ITranscriptService
 
             if (_summarization.IsEnabled && !string.IsNullOrWhiteSpace(entity.CleanText))
             {
-                try
-                {
-                    var sum = await _summarization.SummarizeAsync(entity.CleanText, entity.Title, cancellationToken);
-                    if (sum != null)
-                        await UpsertMeetingSummaryAsync(entity.Id, sum, entity.CreatedBy, cancellationToken);
-                }
-                catch (Exception sumEx)
-                {
-                    _logger.LogWarning(sumEx, "Summarization failed for transcript {TranscriptId}", entity.Id);
-                }
+                entity.SummaryQueueStatus = SummaryQueueStatus.Pending;
+                entity.SummaryRequestedBy = entity.CreatedBy;
+                entity.SummaryQueueError = null;
+                _unitOfWork.Transcripts.UpdateAsync(entity);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Processing failed for transcript {TranscriptId}", transcriptId);
             entity.Status = TranscriptStatus.Failed;
-            entity.ErrorMessage = ex.Message;
+            entity.ErrorMessage = FormatProcessingError(ex);
             _unitOfWork.Transcripts.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
@@ -150,6 +163,76 @@ public class TranscriptService : ITranscriptService
             .OrderBy(t => t.CreatedAt)
             .Select(t => t.Id)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Guid>> GetPendingSummaryTranscriptIdsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _unitOfWork.Transcripts
+            .FindAsync(t =>
+                !t.IsDeleted &&
+                t.Status == TranscriptStatus.Completed &&
+                t.SummaryQueueStatus == SummaryQueueStatus.Pending)
+            .OrderBy(t => t.UpdatedAt ?? t.CreatedAt)
+            .Select(t => t.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task ProcessPendingSummaryAsync(Guid transcriptId, CancellationToken cancellationToken = default)
+    {
+        var entity = await _unitOfWork.Transcripts.GetByIdAsync(transcriptId);
+        if (entity == null || entity.SummaryQueueStatus != SummaryQueueStatus.Pending)
+            return;
+
+        entity.SummaryQueueStatus = SummaryQueueStatus.Processing;
+        entity.SummaryQueueError = null;
+        _unitOfWork.Transcripts.UpdateAsync(entity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            if (!_summarization.IsEnabled)
+            {
+                entity.SummaryQueueStatus = SummaryQueueStatus.Failed;
+                entity.SummaryQueueError = "Gemini chưa được cấu hình (thiếu Gemini:ApiKey).";
+                _unitOfWork.Transcripts.UpdateAsync(entity);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                return;
+            }
+
+            var text = entity.CleanText ?? entity.RawText;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                entity.SummaryQueueStatus = SummaryQueueStatus.Failed;
+                entity.SummaryQueueError = "Transcript không có nội dung.";
+                _unitOfWork.Transcripts.UpdateAsync(entity);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                return;
+            }
+
+            var sum = await _summarization.SummarizeAsync(text, entity.Title, cancellationToken);
+            if (sum == null)
+            {
+                entity.SummaryQueueStatus = SummaryQueueStatus.Failed;
+                entity.SummaryQueueError = "Gemini không trả kết quả.";
+                _unitOfWork.Transcripts.UpdateAsync(entity);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                return;
+            }
+
+            await UpsertMeetingSummaryAsync(entity.Id, sum, entity.SummaryRequestedBy, cancellationToken);
+            entity.SummaryQueueStatus = SummaryQueueStatus.None;
+            entity.SummaryQueueError = null;
+            _unitOfWork.Transcripts.UpdateAsync(entity);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Summary job failed for transcript {TranscriptId}", transcriptId);
+            entity.SummaryQueueStatus = SummaryQueueStatus.Failed;
+            entity.SummaryQueueError = ex.Message.Length > 2000 ? ex.Message[..2000] : ex.Message;
+            _unitOfWork.Transcripts.UpdateAsync(entity);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
     }
 
     public async Task<CommonResponse<TranscriptDetailDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -178,14 +261,21 @@ public class TranscriptService : ITranscriptService
         return new CommonResponse<List<TranscriptListItemDto>> { IsSuccess = true, Data = dtos, Message = "Thành công." };
     }
 
-    public async Task<CommonResponse<TranscriptSummaryDto>> SummarizeAsync(Guid transcriptId, Guid? userId, CancellationToken cancellationToken = default)
+    public async Task<CommonResponse<SummarizeQueuedResponseDto>> QueueSummarizeAsync(Guid transcriptId, Guid? userId, CancellationToken cancellationToken = default)
     {
-        var response = new CommonResponse<TranscriptSummaryDto>();
+        var response = new CommonResponse<SummarizeQueuedResponseDto>();
         var entity = await _unitOfWork.Transcripts.GetByIdAsync(transcriptId);
         if (entity == null || entity.IsDeleted)
         {
             response.IsSuccess = false;
             response.Message = "Không tìm thấy transcript.";
+            return response;
+        }
+
+        if (entity.Status != TranscriptStatus.Completed)
+        {
+            response.IsSuccess = false;
+            response.Message = "Transcript chưa hoàn tất xử lý.";
             return response;
         }
 
@@ -204,30 +294,33 @@ public class TranscriptService : ITranscriptService
             return response;
         }
 
-        TranscriptSummaryDto? sum;
-        try
+        if (entity.SummaryQueueStatus == SummaryQueueStatus.Processing)
         {
-            sum = await _summarization.SummarizeAsync(text, entity.Title, cancellationToken);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning(ex, "Summarization failed for transcript {TranscriptId}", transcriptId);
-            response.IsSuccess = false;
-            response.Message = $"Tóm tắt thất bại: {ex.Message}";
+            response.IsSuccess = true;
+            response.Data = new SummarizeQueuedResponseDto
+            {
+                TranscriptId = transcriptId,
+                SummaryQueueStatus = (int)SummaryQueueStatus.Processing,
+                Message = "Đang tóm tắt trong background."
+            };
+            response.Message = "Đang xử lý.";
             return response;
         }
 
-        if (sum == null)
-        {
-            response.IsSuccess = false;
-            response.Message = "Tóm tắt thất bại (Gemini không trả kết quả).";
-            return response;
-        }
+        entity.SummaryQueueStatus = SummaryQueueStatus.Pending;
+        entity.SummaryRequestedBy = userId;
+        entity.SummaryQueueError = null;
+        _unitOfWork.Transcripts.UpdateAsync(entity);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        await UpsertMeetingSummaryAsync(transcriptId, sum, userId, cancellationToken);
         response.IsSuccess = true;
-        response.Data = sum;
-        response.Message = "Thành công.";
+        response.Data = new SummarizeQueuedResponseDto
+        {
+            TranscriptId = transcriptId,
+            SummaryQueueStatus = (int)SummaryQueueStatus.Pending,
+            Message = "Đã thêm vào hàng đợi. Gọi GET để theo dõi summary hoặc summaryQueueStatus."
+        };
+        response.Message = "Đã nhận yêu cầu tóm tắt (xử lý background).";
         return response;
     }
 
@@ -291,16 +384,11 @@ public class TranscriptService : ITranscriptService
 
         if (_summarization.IsEnabled && !string.IsNullOrWhiteSpace(cleanText))
         {
-            try
-            {
-                var sum = await _summarization.SummarizeAsync(cleanText, title, cancellationToken);
-                if (sum != null)
-                    await UpsertMeetingSummaryAsync(transcript.Id, sum, userId, cancellationToken);
-            }
-            catch (Exception sumEx)
-            {
-                _logger.LogWarning(sumEx, "Auto-summarization failed for Zoom transcript {TranscriptId}", transcript.Id);
-            }
+            transcript.SummaryQueueStatus = SummaryQueueStatus.Pending;
+            transcript.SummaryRequestedBy = userId;
+            transcript.SummaryQueueError = null;
+            _unitOfWork.Transcripts.UpdateAsync(transcript);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         response.IsSuccess = true;
@@ -462,6 +550,35 @@ public class TranscriptService : ITranscriptService
         {
             return new List<string>();
         }
+    }
+
+    private static bool IsVideo(string? contentType) => contentType != null && VideoMimeTypes.Contains(contentType);
+
+    private static bool NeedsCompressedAudioForGroq(AudioTranscript entity, string filePath)
+    {
+        if (IsVideo(entity.MimeType))
+            return true;
+        var ext = Path.GetExtension(entity.OriginalFileName ?? "").ToLowerInvariant();
+        if (ext is ".mp4" or ".webm" or ".mov" or ".avi" or ".mkv")
+            return true;
+        try
+        {
+            var len = new FileInfo(filePath).Length;
+            const long maxBytesBeforeReencode = 20L * 1024 * 1024;
+            return len > maxBytesBeforeReencode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string FormatProcessingError(Exception ex)
+    {
+        var msg = ex.Message;
+        if (ex.InnerException != null)
+            msg += " → " + ex.InnerException.Message;
+        return msg.Length > 2000 ? msg[..2000] : msg;
     }
 
 }

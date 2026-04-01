@@ -12,6 +12,10 @@ public class TranscriptDetailDto
     public DateTime? ProcessedAtUtc { get; set; }
     public string? ErrorMessage { get; set; }
 
+    /// <summary>Background summary job: 0=None, 1=Pending, 2=Processing, 3=Failed.</summary>
+    public int SummaryQueueStatus { get; set; }
+    public string? SummaryQueueError { get; set; }
+
     /// <summary>Gemini-generated summary when available.</summary>
     public TranscriptSummaryDto? Summary { get; set; }
 }

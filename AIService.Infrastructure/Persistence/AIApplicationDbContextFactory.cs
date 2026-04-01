@@ -15,7 +15,7 @@ public sealed class AIApplicationDbContextFactory : IDesignTimeDbContextFactory<
             ?? "Host=localhost;Port=5432;Database=ai_db;Username=postgres;Password=12345";
 
         var options = new DbContextOptionsBuilder<AIApplicationDbContext>()
-            .UseNpgsql(cs)
+            .UseNpgsql(cs, npgsql => npgsql.CommandTimeout(1800))
             .Options;
 
         return new AIApplicationDbContext(options);

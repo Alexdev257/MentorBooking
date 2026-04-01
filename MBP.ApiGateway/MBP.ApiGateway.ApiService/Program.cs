@@ -1,7 +1,14 @@
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 var builder = WebApplication.CreateBuilder(args);
+
+const long maxTranscriptUploadBytes = 524_288_000; // 500 MB — aligned with AIService upload limit
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = maxTranscriptUploadBytes;
+});
 
 // Khi chạy qua Aspire Dashboard, dùng URL do AppHost inject thay vì port cố định trong appsettings
 // Aspire 9 inject service URL theo format: services__{name}__{scheme}__0
@@ -96,8 +103,11 @@ app.Use(async (context, next) =>
     var feature = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
     if (feature is { IsReadOnly: false })
     {
-        // 50 MB should be plenty for Zoom webhook JSON while still bounded.
-        feature.MaxRequestBodySize = 50 * 1024 * 1024;
+        if (context.Request.Path.Equals("/api/transcripts/upload", StringComparison.OrdinalIgnoreCase))
+            feature.MaxRequestBodySize = maxTranscriptUploadBytes;
+        else
+            // Zoom webhook JSON and most API calls stay bounded.
+            feature.MaxRequestBodySize = 50 * 1024 * 1024;
     }
 
     // Help debug "Zoom recording.* webhook not arriving":

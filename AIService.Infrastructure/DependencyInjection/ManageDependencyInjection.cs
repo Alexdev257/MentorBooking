@@ -9,6 +9,7 @@ using AIService.Application.Interfaces.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Shared.Infrastructure.Bus;
 using System.Reflection;
 
@@ -16,6 +17,9 @@ namespace AIService.Infrastructure.DependencyInjection
 {
     public static class ManageDependencyInjection
     {
+        /// <summary>EF/Npgsql default is 30s — large transcripts (text + many segments) fail SaveChanges on slow DB (e.g. Render).</summary>
+        private const int AiDbCommandTimeoutSeconds = 1800;
+
         public static IServiceCollection AddAIServiceInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<GeminiOptions>(configuration.GetSection(GeminiOptions.SectionName));
@@ -51,10 +55,18 @@ namespace AIService.Infrastructure.DependencyInjection
                     "Missing connection string. Expected 'ai-db' (Aspire AppHost) or 'DefaultConnection' (local appsettings).");
 
             connectionString = Shared.Infrastructure.Persistence.ConnectionStringHelper.Normalize(connectionString);
+            var npgsqlBuilder = new NpgsqlConnectionStringBuilder(connectionString)
+            {
+                CommandTimeout = AiDbCommandTimeoutSeconds
+            };
+            connectionString = npgsqlBuilder.ConnectionString;
 
             services.AddDbContext<AIService.Infrastructure.Persistence.AIApplicationDbContext>(options =>
             {
-                options.UseNpgsql(connectionString);
+                options.UseNpgsql(connectionString, npgsql =>
+                {
+                    npgsql.CommandTimeout(AiDbCommandTimeoutSeconds);
+                });
             });
 
             services.AddScoped<DbContext>(provider => provider.GetService<AIService.Infrastructure.Persistence.AIApplicationDbContext>()!);
@@ -73,7 +85,8 @@ namespace AIService.Infrastructure.DependencyInjection
             service.AddHttpClient<ITranscriptionService, GroqTranscriptionService>(client =>
             {
                 client.BaseAddress = new Uri("https://api.groq.com/");
-                client.Timeout = TimeSpan.FromMinutes(10);
+                // Long media can keep Groq busy longer than 10 minutes.
+                client.Timeout = TimeSpan.FromMinutes(45);
             });
         }
 

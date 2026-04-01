@@ -1,4 +1,5 @@
 using AIService.Domain.Entities;
+using AIService.Domain.Enum;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -24,6 +25,12 @@ internal class AudioTranscriptConfiguration : IEntityTypeConfiguration<AudioTran
         builder.Property(x => x.Status).IsRequired().HasColumnName("status");
         builder.Property(x => x.ErrorMessage).HasMaxLength(2000).HasColumnName("error_message");
         builder.Property(x => x.ProcessedAtUtc).HasColumnName("processed_at_utc");
+        builder.Property(x => x.SummaryQueueStatus)
+            .IsRequired()
+            .HasColumnName("summary_queue_status")
+            .HasDefaultValue(SummaryQueueStatus.None);
+        builder.Property(x => x.SummaryQueueError).HasMaxLength(2000).HasColumnName("summary_queue_error");
+        builder.Property(x => x.SummaryRequestedBy).HasColumnName("summary_requested_by");
 
         builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()");
         builder.Property(x => x.CreatedBy).HasColumnName("created_by");

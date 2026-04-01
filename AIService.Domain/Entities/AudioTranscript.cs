@@ -22,5 +22,11 @@ public class AudioTranscript : AuditableEntity
     public TranscriptStatus? Status { get; set; } = null;
     public string? ErrorMessage { get; set; }
     public DateTime? ProcessedAtUtc { get; set; }
+
+    /// <summary>Background Gemini summary job. None when idle or summary already persisted.</summary>
+    public SummaryQueueStatus SummaryQueueStatus { get; set; } = SummaryQueueStatus.None;
+    public string? SummaryQueueError { get; set; }
+    /// <summary>User to attribute MeetingSummary.CreatedBy when summary is generated.</summary>
+    public Guid? SummaryRequestedBy { get; set; }
     public virtual ICollection<AudioTranscriptSegment> Segments { get; set; } = new List<AudioTranscriptSegment>();
 }

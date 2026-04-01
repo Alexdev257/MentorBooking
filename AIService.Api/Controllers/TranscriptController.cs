@@ -77,22 +77,22 @@ public class TranscriptController : ControllerBase
     }
 
     [HttpPost("{id:guid}/summarize")]
-    [AllowAnonymous] // TODO: Remove this later
-    [ProducesResponseType(typeof(CommonResponse<TranscriptSummaryDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(CommonResponse<TranscriptSummaryDto>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(CommonResponse<TranscriptSummaryDto>), StatusCodes.Status404NotFound)]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(CommonResponse<SummarizeQueuedResponseDto>), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(typeof(CommonResponse<SummarizeQueuedResponseDto>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(CommonResponse<SummarizeQueuedResponseDto>), StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Summarize(Guid id, CancellationToken cancellationToken = default)
     {
         var userId = GetUserIdFromClaim();
-        var result = await _transcriptService.SummarizeAsync(id, userId, cancellationToken);
+        var result = await _transcriptService.QueueSummarizeAsync(id, userId, cancellationToken);
         if (!result.IsSuccess)
         {
             if (result.Message == "Không tìm thấy transcript.")
                 return NotFound(result);
             return BadRequest(result);
         }
-        return Ok(result);
+        return StatusCode(StatusCodes.Status202Accepted, result);
     }
 
     [HttpGet("{id:guid}")]
@@ -116,29 +116,6 @@ public class TranscriptController : ControllerBase
         if (pageSize > 100) pageSize = 100;
         var result = await _transcriptService.GetListAsync(pageNumber, pageSize, cancellationToken);
         return Ok(result);
-    }
-
-    [HttpPost("upload-from-url")]
-    [AllowAnonymous]
-    [ProducesResponseType(typeof(CommonResponse<TranscriptUploadResponseDto>), StatusCodes.Status202Accepted)]
-    [ProducesResponseType(typeof(CommonResponse<TranscriptUploadResponseDto>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> UploadFromUrl(
-        [FromBody] UploadFromUrlRequestDto request,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(request.Url))
-        {
-            var bad = new CommonResponse<TranscriptUploadResponseDto> { IsSuccess = false, Message = "url is required." };
-            return BadRequest(bad);
-        }
-
-        var userId = GetUserIdFromClaim();
-        var result = await _transcriptService.UploadFromUrlAsync(
-            request.Url, request.Title, request.SourceType, request.ContentType, userId, cancellationToken);
-
-        if (!result.IsSuccess)
-            return BadRequest(result);
-        return StatusCode(StatusCodes.Status202Accepted, result);
     }
 
     [HttpPost("ingest/zoom-audio")]

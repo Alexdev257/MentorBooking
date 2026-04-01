@@ -172,4 +172,41 @@ public class FfmpegMediaProcessingService : IMediaProcessingService
 
         return outputPath;
     }
+
+    public async Task<string> ExtractAudioForTranscriptionAsync(string inputFilePath, CancellationToken cancellationToken = default)
+    {
+        await EnsureFFmpegAsync(cancellationToken);
+
+        if (!File.Exists(inputFilePath))
+            throw new FileNotFoundException("Input file not found.", inputFilePath);
+
+        var dir = Path.GetDirectoryName(inputFilePath) ?? Path.GetTempPath();
+        var outputFileName = $"{Path.GetFileNameWithoutExtension(inputFilePath)}_{Guid.NewGuid():N}.mp3";
+        var outputPath = Path.Combine(dir, outputFileName);
+
+        try
+        {
+            await FFMpegArguments
+                .FromFileInput(inputFilePath)
+                .OutputToFile(outputPath, overwrite: true, options => options
+                    .WithCustomArgument("-vn -acodec libmp3lame -ar 16000 -ac 1 -b:a 32k"))
+                .ProcessAsynchronously(true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "FFmpeg MP3 encode failed; retrying with AAC.");
+            outputFileName = $"{Path.GetFileNameWithoutExtension(inputFilePath)}_{Guid.NewGuid():N}.m4a";
+            outputPath = Path.Combine(dir, outputFileName);
+            await FFMpegArguments
+                .FromFileInput(inputFilePath)
+                .OutputToFile(outputPath, overwrite: true, options => options
+                    .WithCustomArgument("-vn -acodec aac -ar 16000 -ac 1 -b:a 32k"))
+                .ProcessAsynchronously(true);
+        }
+
+        if (!File.Exists(outputPath))
+            throw new InvalidOperationException("FFmpeg did not produce compressed audio file.");
+
+        return outputPath;
+    }
 }

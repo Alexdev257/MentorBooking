@@ -41,6 +41,23 @@ public static class Extensions
         return builder;
     }
 
+    /// <summary>
+    /// Like AddServiceDefaults but does not add the standard HTTP resilience handler
+    /// (default total timeout 30s breaks long Groq Whisper transcribe calls).
+    /// Keeps OpenTelemetry, health checks, service discovery, and HTTP client service discovery.
+    /// </summary>
+    public static TBuilder AddServiceDefaultsWithoutStandardHttpResilience<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        builder.ConfigureOpenTelemetry();
+        builder.AddDefaultHealthChecks();
+        builder.Services.AddServiceDiscovery();
+        builder.Services.ConfigureHttpClientDefaults(http =>
+        {
+            http.AddServiceDiscovery();
+        });
+        return builder;
+    }
+
     public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.Logging.AddOpenTelemetry(logging =>

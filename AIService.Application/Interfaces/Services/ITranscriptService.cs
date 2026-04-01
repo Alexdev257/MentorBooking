@@ -9,8 +9,14 @@ public interface ITranscriptService
     Task<CommonResponse<TranscriptDetailDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<CommonResponse<List<TranscriptListItemDto>>> GetListAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default);
 
-    /// <summary>Runs Gemini summarization for an existing transcript and persists a MeetingSummary row (MeetingId = transcript id).</summary>
-    Task<CommonResponse<TranscriptSummaryDto>> SummarizeAsync(Guid transcriptId, Guid? userId, CancellationToken cancellationToken = default);
+    /// <summary>Queues Gemini summarization; returns immediately. Poll GET transcript until summary appears or SummaryQueueStatus is Failed.</summary>
+    Task<CommonResponse<SummarizeQueuedResponseDto>> QueueSummarizeAsync(Guid transcriptId, Guid? userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Process one pending summary job (called from background worker).</summary>
+    Task ProcessPendingSummaryAsync(Guid transcriptId, CancellationToken cancellationToken = default);
+
+    /// <summary>Transcripts with completed text and SummaryQueueStatus = Pending.</summary>
+    Task<List<Guid>> GetPendingSummaryTranscriptIdsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Download video/audio from a URL, save locally, and queue for Whisper transcription + Gemini summarization.</summary>
     Task<CommonResponse<TranscriptUploadResponseDto>> UploadFromUrlAsync(

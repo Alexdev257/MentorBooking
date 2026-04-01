@@ -8,7 +8,8 @@ public class AIServiceMappingProfile : Profile
 {
     public AIServiceMappingProfile()
     {
-        CreateMap<AudioTranscript, TranscriptDetailDto>();
+        CreateMap<AudioTranscript, TranscriptDetailDto>()
+            .ForMember(d => d.SummaryQueueStatus, o => o.MapFrom(s => (int)s.SummaryQueueStatus));
         CreateMap<AudioTranscript, TranscriptListItemDto>();
         CreateMap<AudioTranscriptSegment, TranscriptSegmentDto>();
     }

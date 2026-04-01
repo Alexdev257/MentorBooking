@@ -3,6 +3,7 @@ using System;
 using AIService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AIService.Infrastructure.Migrations
 {
     [DbContext(typeof(AIApplicationDbContext))]
-    partial class AIApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260401152551_AddSummaryQueueToAudioTranscript")]
+    partial class AddSummaryQueueToAudioTranscript
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

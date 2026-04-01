@@ -355,25 +355,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Re-summarize thành công (200)', function () {",
-                  "    pm.response.to.have.status(200);",
+                  "pm.test('Re-summarize được chấp nhận (202 — xử lý background)', function () {",
+                  "    pm.response.to.have.status(202);",
                   "});",
                   "",
                   "var json = pm.response.json();",
                   "if (json.isSuccess && json.data) {",
-                  "    console.log('✅ Summary mới đã được tạo');",
-                  "    console.log('Model: ' + json.data.model);",
-                  "    console.log('Summary: ' + json.data.summary);",
-                  "    if (json.data.reportJson) {",
-                  "        var report = JSON.parse(json.data.reportJson);",
-                  "        console.log('Report title: ' + report.title);",
-                  "        console.log('Action items: ' + JSON.stringify(report.actionItems));",
-                  "    }",
-                  "    if (json.data.mindmapJson) {",
-                  "        var mindmap = JSON.parse(json.data.mindmapJson);",
-                  "        console.log('Mindmap central topic: ' + mindmap.centralTopic);",
-                  "        console.log('Branches: ' + mindmap.branches.map(function(b) { return b.topic; }).join(', '));",
-                  "    }",
+                  "    console.log('✅ Đã queue tóm tắt — poll GET transcript để lấy summary');",
+                  "    console.log('summaryQueueStatus: ' + json.data.summaryQueueStatus + ' (1=Pending, 2=Processing)');",
+                  "    console.log(json.data.message);",
                   "} else {",
                   "    console.error('❌ ' + json.message);",
                   "}"
@@ -389,7 +379,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "transcripts", "{{transcript_id}}", "summarize"]
             },
-            "description": "Gọi lại Gemini để tạo summary mới cho transcript đã có.\nChỉ hoạt động khi transcript status = Completed và GEMINI_API_KEY đã được config trên server."
+            "description": "Queue Gemini để tóm tắt (trả **202 Accepted** ngay, không chờ Gemini — tránh timeout 30s trên Render).\nPoll GET transcript: `summaryQueueStatus` 0=idle, 1=Pending, 2=Processing, 3=Failed; khi xong có `summary`.\nChỉ khi transcript status = Completed và GEMINI đã config."
           }
         }
       ]

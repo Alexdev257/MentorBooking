@@ -30,6 +30,7 @@ public class TranscriptProcessingService : BackgroundService
             try
             {
                 await ProcessQueuedTranscriptsAsync(stoppingToken);
+                await ProcessPendingSummariesAsync(stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -69,6 +70,35 @@ public class TranscriptProcessingService : BackgroundService
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Failed to process transcript {TranscriptId}", id);
+            }
+        }
+    }
+
+    private async Task ProcessPendingSummariesAsync(CancellationToken stoppingToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var transcriptService = scope.ServiceProvider.GetRequiredService<ITranscriptService>();
+
+        var pendingIds = await transcriptService.GetPendingSummaryTranscriptIdsAsync(stoppingToken);
+        if (pendingIds.Count == 0)
+            return;
+
+        _logger.LogInformation("Found {Count} pending summarization job(s)", pendingIds.Count);
+
+        foreach (var id in pendingIds)
+        {
+            if (stoppingToken.IsCancellationRequested)
+                break;
+
+            _logger.LogInformation("Summarizing transcript {TranscriptId}", id);
+            try
+            {
+                await transcriptService.ProcessPendingSummaryAsync(id, stoppingToken);
+                _logger.LogInformation("Summary completed for transcript {TranscriptId}", id);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Failed summarization for transcript {TranscriptId}", id);
             }
         }
     }

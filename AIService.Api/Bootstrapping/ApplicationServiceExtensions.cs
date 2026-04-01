@@ -1,5 +1,7 @@
 using AIService.Infrastructure.DependencyInjection;
 using AIService.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Shared.Infrastructure;
@@ -12,10 +14,23 @@ namespace AIService.Api.Bootstrapping;
 /// </summary>
 public static class ApplicationServiceExtensions
 {
+    /// <summary>Aligned with <c>TranscriptController</c> upload limit (500 MB).</summary>
+    private const long MaxMultipartBytes = 524_288_000;
+
     public static IHostApplicationBuilder AddApplicationServices(this IHostApplicationBuilder builder)
     {
-        builder.AddServiceDefaults();
+        // Do not use AddServiceDefaults(): AddStandardResilienceHandler defaults to 30s total timeout and cancels Groq transcribe.
+        builder.AddServiceDefaultsWithoutStandardHttpResilience();
         builder.AddCommonService("AI Service API");
+
+        builder.Services.Configure<KestrelServerOptions>(options =>
+        {
+            options.Limits.MaxRequestBodySize = MaxMultipartBytes;
+        });
+        builder.Services.Configure<FormOptions>(options =>
+        {
+            options.MultipartBodyLengthLimit = MaxMultipartBytes;
+        });
 
         builder.Services.AddSharedInfrastructure(builder.Configuration);
         builder.Services.AddAIServiceInfrastructure(builder.Configuration);
