@@ -14,10 +14,12 @@ var aiUrl      = GetAspireServiceUrl("aiservice-api");
 var authUrl    = GetAspireServiceUrl("authservice-api");
 var bookingUrl = GetAspireServiceUrl("bookingservice-api");
 var meetingUrl = GetAspireServiceUrl("meetingservice-api");
+var emailUrl   = GetAspireServiceUrl("emailservice-api");
 if (!string.IsNullOrEmpty(aiUrl))      clusterOverrides["ReverseProxy:Clusters:ai-cluster:Destinations:destination1:Address"]      = aiUrl;
 if (!string.IsNullOrEmpty(authUrl))    clusterOverrides["ReverseProxy:Clusters:auth-cluster:Destinations:destination1:Address"]    = authUrl;
 if (!string.IsNullOrEmpty(bookingUrl)) clusterOverrides["ReverseProxy:Clusters:booking-cluster:Destinations:destination1:Address"] = bookingUrl;
 if (!string.IsNullOrEmpty(meetingUrl)) clusterOverrides["ReverseProxy:Clusters:meeting-cluster:Destinations:destination1:Address"] = meetingUrl;
+if (!string.IsNullOrEmpty(emailUrl))   clusterOverrides["ReverseProxy:Clusters:email-cluster:Destinations:destination1:Address"]   = emailUrl;
 if (clusterOverrides.Count > 0)
     builder.Configuration.AddInMemoryCollection(clusterOverrides);
 

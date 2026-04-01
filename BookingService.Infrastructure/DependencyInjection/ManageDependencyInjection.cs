@@ -50,7 +50,8 @@ namespace BookingService.Infrastructure.DependencyInjection
             var rabbitHost = configuration["RabbitMQ:Host"];
             if (rabbitEnabled && !string.IsNullOrWhiteSpace(rabbitHost))
             {
-                services.AddMessageBus(configuration);
+                // Register consumers from BookingService.Infrastructure (e.g. ZoomRecordingProcessingRequestedConsumer)
+                services.AddMessageBus(configuration, Assembly.Load("BookingService.Infrastructure"));
             }
             else
             {
@@ -89,6 +90,7 @@ namespace BookingService.Infrastructure.DependencyInjection
             });
             service.AddHttpClient<IMeetingRecordingCloudMirrorService, MeetingRecordingCloudMirrorService>(_ => { });
             service.AddHttpClient<IZoomAudioTranscriptIngestionService, ZoomAudioTranscriptIngestionService>(_ => { });
+            service.AddHttpClient<IZoomRecordingAiUploadService, ZoomRecordingAiUploadService>(_ => { });
             service.AddHttpClient<IZoomVideoTranscriptionService, ZoomVideoTranscriptionService>(_ => { });
             service.AddHttpClient<IUserService, UserService>(client =>
             {
