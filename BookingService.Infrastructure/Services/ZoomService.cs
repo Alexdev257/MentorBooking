@@ -1,4 +1,5 @@
 using BookingService.Application.DTOs.Response;
+using BookingService.Application.DTOs.Request;
 using BookingService.Application.Interfaces.Services;
 using BookingService.Domain.Entities;
 using Microsoft.Extensions.Configuration;
@@ -260,6 +261,34 @@ public class ZoomService : IZoomService
             _logger.LogError(ex, "Error adding Zoom registrant");
             return null;
         }
+    }
+
+    public async Task<List<ZoomRecordingFile>> GetMeetingRecordingFilesAsync(string meetingId, CancellationToken ct = default)
+    {
+        var token = await GetAccessToken(ct);
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"meetings/{Uri.EscapeDataString(meetingId)}/recordings");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await _httpClient.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogWarning(
+                "Zoom GET meetings/{MeetingId}/recordings failed {Status}: {Body}",
+                meetingId,
+                response.StatusCode,
+                body);
+            return new List<ZoomRecordingFile>();
+        }
+
+        var payload = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
+        if (!payload.TryGetProperty("recording_files", out var filesEl) || filesEl.ValueKind != JsonValueKind.Array)
+            return new List<ZoomRecordingFile>();
+
+        return filesEl.Deserialize<List<ZoomRecordingFile>>(new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        }) ?? new List<ZoomRecordingFile>();
     }
 
     public async Task<List<ZoomParticipantReport>> GetAttendanceReportAsync(

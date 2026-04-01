@@ -1,4 +1,5 @@
 using BookingService.Application.DTOs.Response;
+using BookingService.Application.DTOs.Request;
 using BookingService.Domain.Entities;
 
 namespace BookingService.Application.Interfaces.Services;
@@ -19,4 +20,5 @@ public interface IZoomService
     Task<string?> AddRegistrantAsync(string meetingId, string email, string? firstName, string? lastName, CancellationToken ct = default);
     /// <param name="meetingInstanceUuid">From webhook <c>payload.object.uuid</c>; used with past-meetings API (works with typical meeting scopes).</param>
     Task<List<ZoomParticipantReport>> GetAttendanceReportAsync(string meetingId, string? meetingInstanceUuid = null, CancellationToken ct = default);
+    Task<List<ZoomRecordingFile>> GetMeetingRecordingFilesAsync(string meetingId, CancellationToken ct = default);
 }
