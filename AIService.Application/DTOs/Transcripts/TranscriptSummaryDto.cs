@@ -11,4 +11,10 @@ public class TranscriptSummaryDto
 
     public string? Model { get; set; }
     public DateTime GeneratedAtUtc { get; set; }
+
+    /// <summary>Structured report JSON: { title, agenda[], decisions[], actionItems[], followUps[], highlights[] }</summary>
+    public string? ReportJson { get; set; }
+
+    /// <summary>Mindmap JSON: { centralTopic, branches[{ topic, subtopics[] }] }</summary>
+    public string? MindmapJson { get; set; }
 }

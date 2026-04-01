@@ -41,10 +41,16 @@ public class GeminiTranscriptSummarizationService : ITranscriptSummarizationServ
             text = text[..max] + "\n\n[Transcript truncated for summarization.]";
 
         var userPrompt =
-            "You are summarizing a mentor session or meeting transcript (plain text from speech-to-text; speakers are not labeled).\n" +
-            "Produce a detailed, accurate summary in Vietnamese unless the transcript is clearly in another language (then match that language).\n" +
-            "Include: main themes, concrete advice, decisions, follow-ups, and notable terms.\n\n" +
+            "You are analyzing a mentor session or meeting transcript (plain text from speech-to-text; speakers are not labeled).\n" +
+            "Respond in Vietnamese unless the transcript is clearly in another language (then match that language).\n\n" +
             (string.IsNullOrWhiteSpace(title) ? "" : $"Session title: {title}\n\n") +
+            "Produce ALL of the following fields:\n" +
+            "- summary: A detailed paragraph summarizing the session.\n" +
+            "- keyPoints: The most important points as short bullet strings.\n" +
+            "- topics: Main subject areas discussed.\n" +
+            "- sentiment: Overall tone and notes.\n" +
+            "- report: A structured meeting report with title, agenda items, decisions made, action items, follow-up tasks, and highlights.\n" +
+            "- mindmap: A hierarchical mindmap starting from the central topic with branches and subtopics that visually represent the meeting content.\n\n" +
             "Transcript:\n" +
             text;
 
@@ -125,12 +131,22 @@ public class GeminiTranscriptSummarizationService : ITranscriptSummarizationServ
             if (root.TryGetProperty("sentiment", out var sentimentEl))
                 sentimentJson = sentimentEl.GetRawText();
 
+            string? reportJson = null;
+            if (root.TryGetProperty("report", out var reportEl))
+                reportJson = reportEl.GetRawText();
+
+            string? mindmapJson = null;
+            if (root.TryGetProperty("mindmap", out var mindmapEl))
+                mindmapJson = mindmapEl.GetRawText();
+
             return new TranscriptSummaryDto
             {
                 Summary = summary.Trim(),
                 KeyPoints = keyPoints,
                 Topics = topics,
                 SentimentJson = string.IsNullOrWhiteSpace(sentimentJson) ? "{}" : sentimentJson,
+                ReportJson = reportJson,
+                MindmapJson = mindmapJson,
                 Model = _options.Model,
                 GeneratedAtUtc = DateTime.UtcNow
             };
@@ -221,9 +237,67 @@ public class GeminiTranscriptSummarizationService : ITranscriptSummarizationServ
                         ["overall"] = new JsonObject { ["type"] = "STRING" },
                         ["notes"] = new JsonObject { ["type"] = "STRING" }
                     }
+                },
+                ["report"] = new JsonObject
+                {
+                    ["type"] = "OBJECT",
+                    ["properties"] = new JsonObject
+                    {
+                        ["title"] = new JsonObject { ["type"] = "STRING" },
+                        ["agenda"] = new JsonObject
+                        {
+                            ["type"] = "ARRAY",
+                            ["items"] = new JsonObject { ["type"] = "STRING" }
+                        },
+                        ["decisions"] = new JsonObject
+                        {
+                            ["type"] = "ARRAY",
+                            ["items"] = new JsonObject { ["type"] = "STRING" }
+                        },
+                        ["actionItems"] = new JsonObject
+                        {
+                            ["type"] = "ARRAY",
+                            ["items"] = new JsonObject { ["type"] = "STRING" }
+                        },
+                        ["followUps"] = new JsonObject
+                        {
+                            ["type"] = "ARRAY",
+                            ["items"] = new JsonObject { ["type"] = "STRING" }
+                        },
+                        ["highlights"] = new JsonObject
+                        {
+                            ["type"] = "ARRAY",
+                            ["items"] = new JsonObject { ["type"] = "STRING" }
+                        }
+                    }
+                },
+                ["mindmap"] = new JsonObject
+                {
+                    ["type"] = "OBJECT",
+                    ["properties"] = new JsonObject
+                    {
+                        ["centralTopic"] = new JsonObject { ["type"] = "STRING" },
+                        ["branches"] = new JsonObject
+                        {
+                            ["type"] = "ARRAY",
+                            ["items"] = new JsonObject
+                            {
+                                ["type"] = "OBJECT",
+                                ["properties"] = new JsonObject
+                                {
+                                    ["topic"] = new JsonObject { ["type"] = "STRING" },
+                                    ["subtopics"] = new JsonObject
+                                    {
+                                        ["type"] = "ARRAY",
+                                        ["items"] = new JsonObject { ["type"] = "STRING" }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
-            ["required"] = new JsonArray("summary", "keyPoints", "topics", "sentiment")
+            ["required"] = new JsonArray("summary", "keyPoints", "topics", "sentiment", "report", "mindmap")
         };
 
         var root = new JsonObject

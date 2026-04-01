@@ -118,6 +118,29 @@ public class TranscriptController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("upload-from-url")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(CommonResponse<TranscriptUploadResponseDto>), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(typeof(CommonResponse<TranscriptUploadResponseDto>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UploadFromUrl(
+        [FromBody] UploadFromUrlRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Url))
+        {
+            var bad = new CommonResponse<TranscriptUploadResponseDto> { IsSuccess = false, Message = "url is required." };
+            return BadRequest(bad);
+        }
+
+        var userId = GetUserIdFromClaim();
+        var result = await _transcriptService.UploadFromUrlAsync(
+            request.Url, request.Title, request.SourceType, request.ContentType, userId, cancellationToken);
+
+        if (!result.IsSuccess)
+            return BadRequest(result);
+        return StatusCode(StatusCodes.Status202Accepted, result);
+    }
+
     [HttpPost("ingest/zoom-audio")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(CommonResponse<ZoomAudioTranscriptIngestResponseDto>), StatusCodes.Status201Created)]

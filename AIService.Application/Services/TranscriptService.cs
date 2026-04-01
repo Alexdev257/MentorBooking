@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using System.Text.Json;
 using AIService.Application.DTOs.Transcripts;
 using AIService.Application.Interfaces;
@@ -19,6 +20,7 @@ public class TranscriptService : ITranscriptService
     private readonly IFileStorageService _fileStorage;
     private readonly ITranscriptionService _transcription;
     private readonly ITranscriptSummarizationService _summarization;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<TranscriptService> _logger;
 
     public TranscriptService(
@@ -27,6 +29,7 @@ public class TranscriptService : ITranscriptService
         IFileStorageService fileStorage,
         ITranscriptionService transcription,
         ITranscriptSummarizationService summarization,
+        IHttpClientFactory httpClientFactory,
         ILogger<TranscriptService> logger)
     {
         _unitOfWork = unitOfWork;
@@ -34,6 +37,7 @@ public class TranscriptService : ITranscriptService
         _fileStorage = fileStorage;
         _transcription = transcription;
         _summarization = summarization;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -284,11 +288,105 @@ public class TranscriptService : ITranscriptService
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (_summarization.IsEnabled && !string.IsNullOrWhiteSpace(cleanText))
+        {
+            try
+            {
+                var sum = await _summarization.SummarizeAsync(cleanText, title, cancellationToken);
+                if (sum != null)
+                    await UpsertMeetingSummaryAsync(transcript.Id, sum, userId, cancellationToken);
+            }
+            catch (Exception sumEx)
+            {
+                _logger.LogWarning(sumEx, "Auto-summarization failed for Zoom transcript {TranscriptId}", transcript.Id);
+            }
+        }
+
         response.IsSuccess = true;
         response.Message = "Ingest zoom audio transcript thành công.";
         response.Data = new ZoomAudioTranscriptIngestResponseDto { TranscriptId = transcript.Id };
         return response;
     }
+
+    public async Task<CommonResponse<TranscriptUploadResponseDto>> UploadFromUrlAsync(
+        string url, string? title, int sourceType, string? contentType,
+        Guid? userId, CancellationToken cancellationToken = default)
+    {
+        var response = new CommonResponse<TranscriptUploadResponseDto>();
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            response.IsSuccess = false;
+            response.Message = "URL is required.";
+            return response;
+        }
+
+        var sourceTypeEnum = sourceType is >= 1 and <= 4 ? (MediaSourceType)sourceType : MediaSourceType.RecordVideo;
+
+        try
+        {
+            var httpClient = _httpClientFactory.CreateClient("url-downloader");
+            using var downloadResponse = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            if (!downloadResponse.IsSuccessStatusCode)
+            {
+                response.IsSuccess = false;
+                response.Message = $"Không thể download file từ URL: HTTP {(int)downloadResponse.StatusCode}";
+                return response;
+            }
+
+            var resolvedContentType = contentType
+                ?? downloadResponse.Content.Headers.ContentType?.MediaType
+                ?? "video/mp4";
+
+            var uriPath = new Uri(url).AbsolutePath;
+            var fileName = Path.GetFileName(uriPath);
+            if (string.IsNullOrWhiteSpace(fileName) || !fileName.Contains('.'))
+                fileName = ResolveFileNameFromContentType(resolvedContentType);
+
+            var entity = new AudioTranscript
+            {
+                Id = Guid.NewGuid(),
+                Title = title ?? Path.GetFileNameWithoutExtension(fileName),
+                SourceType = sourceTypeEnum,
+                OriginalFileName = fileName,
+                MimeType = resolvedContentType,
+                Status = TranscriptStatus.Queued,
+                CreatedBy = userId
+            };
+
+            await using var stream = await downloadResponse.Content.ReadAsStreamAsync(cancellationToken);
+            var savedPath = await _fileStorage.SaveAsync(stream, fileName, cancellationToken);
+            entity.OriginalFilePath = savedPath;
+            entity.FileSizeBytes = new FileInfo(savedPath).Length;
+
+            await _unitOfWork.Transcripts.AddAsync(entity);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            response.IsSuccess = true;
+            response.Data = new TranscriptUploadResponseDto
+            {
+                Id = entity.Id,
+                Status = (int)TranscriptStatus.Queued,
+                Message = "Video đã được nhận. Transcript và summary đang được xử lý trong background."
+            };
+            response.Message = "Upload from URL thành công.";
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "UploadFromUrl failed for url {Url}", url);
+            response.IsSuccess = false;
+            response.Message = $"Lỗi khi download/lưu file: {ex.Message}";
+            return response;
+        }
+    }
+
+    private static string ResolveFileNameFromContentType(string contentType) => contentType switch
+    {
+        "audio/mp4" or "audio/m4a" => "recording.m4a",
+        "audio/mpeg" => "recording.mp3",
+        _ => "recording.mp4"
+    };
 
     private async Task UpsertMeetingSummaryAsync(Guid transcriptId, TranscriptSummaryDto dto, Guid? userId, CancellationToken cancellationToken)
     {
@@ -307,6 +405,8 @@ public class TranscriptService : ITranscriptService
             existing.KeyPoints = keyPointsJson;
             existing.Topics = topicsJson;
             existing.Sentiment = sentiment;
+            existing.Report = dto.ReportJson;
+            existing.Mindmap = dto.MindmapJson;
             existing.Model = dto.Model;
             existing.UpdatedAt = DateTime.UtcNow;
             _unitOfWork.MeetingSummaries.UpdateAsync(existing);
@@ -321,6 +421,8 @@ public class TranscriptService : ITranscriptService
                 KeyPoints = keyPointsJson,
                 Topics = topicsJson,
                 Sentiment = sentiment,
+                Report = dto.ReportJson,
+                Mindmap = dto.MindmapJson,
                 Model = dto.Model,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = userId
@@ -341,6 +443,8 @@ public class TranscriptService : ITranscriptService
             KeyPoints = DeserializeStringList(entity.KeyPoints),
             Topics = DeserializeStringList(entity.Topics),
             SentimentJson = string.IsNullOrWhiteSpace(entity.Sentiment) ? "{}" : entity.Sentiment,
+            ReportJson = entity.Report,
+            MindmapJson = entity.Mindmap,
             Model = entity.Model,
             GeneratedAtUtc = entity.UpdatedAt ?? entity.CreatedAt
         };

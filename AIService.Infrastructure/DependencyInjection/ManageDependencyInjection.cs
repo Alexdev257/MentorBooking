@@ -31,6 +31,11 @@ namespace AIService.Infrastructure.DependencyInjection
             services.AddAutoMapper(typeof(AIServiceMappingProfile));
             services.AddMediatRInfrastructure(configuration);
             services.AddMessageBus(configuration);
+            services.AddHttpClient("url-downloader", client =>
+            {
+                client.Timeout = TimeSpan.FromMinutes(15);
+            });
+
             services.AddHostedService<TranscriptProcessingService>();
             return services;
         }

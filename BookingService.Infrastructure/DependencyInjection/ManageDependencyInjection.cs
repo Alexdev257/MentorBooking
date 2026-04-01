@@ -89,7 +89,7 @@ namespace BookingService.Infrastructure.DependencyInjection
             });
             service.AddHttpClient<IMeetingRecordingCloudMirrorService, MeetingRecordingCloudMirrorService>(_ => { });
             service.AddHttpClient<IZoomAudioTranscriptIngestionService, ZoomAudioTranscriptIngestionService>(_ => { });
-            service.AddHttpClient<IZoomRecordingAiUploadService, ZoomRecordingAiUploadService>(_ => { });
+            service.AddHttpClient<IZoomVideoTranscriptionService, ZoomVideoTranscriptionService>(_ => { });
             service.AddHttpClient<IUserService, UserService>(client =>
             {
                 client.BaseAddress = new Uri(configuration["ServiceUrls:AuthService"] ?? "http://localhost:5001");
