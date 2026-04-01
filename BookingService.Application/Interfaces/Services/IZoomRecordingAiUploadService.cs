@@ -2,7 +2,7 @@ namespace BookingService.Application.Interfaces.Services;
 
 public interface IZoomRecordingAiUploadService
 {
-    Task<bool> UploadRecordingToAiAsync(
+    Task<(bool IsSuccess, string? TranscriptId)> UploadRecordingToAiAsync(
         Guid bookingId,
         string meetingId,
         string recordingDownloadUrl,

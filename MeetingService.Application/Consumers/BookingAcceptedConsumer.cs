@@ -32,8 +32,8 @@ namespace MeetingService.Application.Consumers
                 Provider = "Zoom",
                 JoinUrl = message.JoinUrl,
                 HostUrl = message.JoinUrl, // Mentor uses the same link for now as requested
-                StartedAt = message.StartedAt,
-                EndedAt = message.EndedAt
+                StartedAt = message.StartedAt.ToUniversalTime(),
+                EndedAt = message.EndedAt.ToUniversalTime()
             };
 
             await _unitOfWork.Meetings.AddAsync(meeting);
