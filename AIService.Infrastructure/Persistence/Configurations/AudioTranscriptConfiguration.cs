@@ -17,6 +17,7 @@ internal class AudioTranscriptConfiguration : IEntityTypeConfiguration<AudioTran
         builder.Property(x => x.SourceType).IsRequired().HasColumnName("source_type");
         builder.Property(x => x.OriginalFileName).HasMaxLength(500).HasColumnName("original_file_name");
         builder.Property(x => x.OriginalFilePath).HasMaxLength(2000).HasColumnName("original_file_path");
+        builder.Property(x => x.SourceUrl).HasMaxLength(2000).HasColumnName("source_url");
         builder.Property(x => x.ExtractedAudioPath).HasMaxLength(2000).HasColumnName("extracted_audio_path");
         builder.Property(x => x.MimeType).HasMaxLength(100).HasColumnName("mime_type");
         builder.Property(x => x.FileSizeBytes).HasColumnName("file_size_bytes");

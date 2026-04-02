@@ -105,6 +105,29 @@ public class TranscriptService : ITranscriptService
             _unitOfWork.Transcripts.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            // Download file nếu chưa có (upload-from-url chỉ lưu URL, background mới download)
+            if (string.IsNullOrWhiteSpace(entity.OriginalFilePath) && !string.IsNullOrWhiteSpace(entity.SourceUrl))
+            {
+                _logger.LogInformation("Downloading file from SourceUrl for transcript {TranscriptId}", transcriptId);
+                var httpClient = _httpClientFactory.CreateClient("url-downloader");
+                using var downloadResponse = await httpClient.GetAsync(entity.SourceUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                if (!downloadResponse.IsSuccessStatusCode)
+                    throw new InvalidOperationException($"Không thể download file từ SourceUrl: HTTP {(int)downloadResponse.StatusCode}");
+
+                var resolvedContentType = entity.MimeType
+                    ?? downloadResponse.Content.Headers.ContentType?.MediaType
+                    ?? "video/mp4";
+
+                var fileName = entity.OriginalFileName ?? ResolveFileNameFromContentType(resolvedContentType);
+                await using var stream = await downloadResponse.Content.ReadAsStreamAsync(cancellationToken);
+                var savedPath = await _fileStorage.SaveAsync(stream, fileName, cancellationToken);
+                entity.OriginalFilePath = savedPath;
+                entity.FileSizeBytes = new FileInfo(savedPath).Length;
+                _unitOfWork.Transcripts.UpdateAsync(entity);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation("Downloaded file to {Path} for transcript {TranscriptId}", savedPath, transcriptId);
+            }
+
             var transcribePath = entity.OriginalFilePath!;
             if (NeedsCompressedAudioForGroq(entity, transcribePath))
             {
@@ -413,19 +436,7 @@ public class TranscriptService : ITranscriptService
 
         try
         {
-            var httpClient = _httpClientFactory.CreateClient("url-downloader");
-            using var downloadResponse = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            if (!downloadResponse.IsSuccessStatusCode)
-            {
-                response.IsSuccess = false;
-                response.Message = $"Không thể download file từ URL: HTTP {(int)downloadResponse.StatusCode}";
-                return response;
-            }
-
-            var resolvedContentType = contentType
-                ?? downloadResponse.Content.Headers.ContentType?.MediaType
-                ?? "video/mp4";
-
+            var resolvedContentType = contentType ?? "video/mp4";
             var uriPath = new Uri(url).AbsolutePath;
             var fileName = Path.GetFileName(uriPath);
             if (string.IsNullOrWhiteSpace(fileName) || !fileName.Contains('.'))
@@ -438,14 +449,10 @@ public class TranscriptService : ITranscriptService
                 SourceType = sourceTypeEnum,
                 OriginalFileName = fileName,
                 MimeType = resolvedContentType,
+                SourceUrl = url,
                 Status = TranscriptStatus.Queued,
                 CreatedBy = userId
             };
-
-            await using var stream = await downloadResponse.Content.ReadAsStreamAsync(cancellationToken);
-            var savedPath = await _fileStorage.SaveAsync(stream, fileName, cancellationToken);
-            entity.OriginalFilePath = savedPath;
-            entity.FileSizeBytes = new FileInfo(savedPath).Length;
 
             await _unitOfWork.Transcripts.AddAsync(entity);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -455,7 +462,7 @@ public class TranscriptService : ITranscriptService
             {
                 Id = entity.Id,
                 Status = (int)TranscriptStatus.Queued,
-                Message = "Video đã được nhận. Transcript và summary đang được xử lý trong background."
+                Message = "URL đã được nhận. Background worker sẽ download và xử lý transcript."
             };
             response.Message = "Upload from URL thành công.";
             return response;
@@ -464,7 +471,7 @@ public class TranscriptService : ITranscriptService
         {
             _logger.LogError(ex, "UploadFromUrl failed for url {Url}", url);
             response.IsSuccess = false;
-            response.Message = $"Lỗi khi download/lưu file: {ex.Message}";
+            response.Message = $"Lỗi khi lưu yêu cầu: {ex.Message}";
             return response;
         }
     }

@@ -11,20 +11,20 @@ namespace BookingService.Infrastructure.Consumers;
 public class ZoomRecordingProcessingRequestedConsumer : IConsumer<ZoomRecordingProcessingRequestedEvent>
 {
     private readonly IMeetingRecordingCloudMirrorService _mirror;
-    private readonly IZoomRecordingAiUploadService _aiUpload;
+    private readonly IZoomVideoTranscriptionService _transcription;
     private readonly IBookingUnitOfWork _unitOfWork;
     private readonly IMessageProducer _producer;
     private readonly ILogger<ZoomRecordingProcessingRequestedConsumer> _logger;
 
     public ZoomRecordingProcessingRequestedConsumer(
         IMeetingRecordingCloudMirrorService mirror,
-        IZoomRecordingAiUploadService aiUpload,
+        IZoomVideoTranscriptionService transcription,
         IBookingUnitOfWork unitOfWork,
         IMessageProducer producer,
         ILogger<ZoomRecordingProcessingRequestedConsumer> logger)
     {
         _mirror = mirror;
-        _aiUpload = aiUpload;
+        _transcription = transcription;
         _unitOfWork = unitOfWork;
         _producer = producer;
         _logger = logger;
@@ -43,6 +43,7 @@ public class ZoomRecordingProcessingRequestedConsumer : IConsumer<ZoomRecordingP
             msg.ContentType,
             msg.SizeBytes);
 
+        // Mirror lên Firebase trước — AI service sẽ dùng Firebase URL để download (không cần Zoom token)
         var firebaseUrl = await _mirror.TryMirrorToFirebaseAsync(
             msg.BookingId,
             msg.MeetingId,
@@ -50,15 +51,6 @@ public class ZoomRecordingProcessingRequestedConsumer : IConsumer<ZoomRecordingP
             msg.ZoomDownloadToken,
             "video",
             msg.Extension,
-            msg.ContentType,
-            ct);
-
-        var (aiOk, aiTranscriptId) = await _aiUpload.UploadRecordingToAiAsync(
-            msg.BookingId,
-            msg.MeetingId,
-            msg.RecordingDownloadUrl,
-            msg.ZoomDownloadToken,
-            $"{msg.MeetingId}.mp4",
             msg.ContentType,
             ct);
 
@@ -77,6 +69,26 @@ public class ZoomRecordingProcessingRequestedConsumer : IConsumer<ZoomRecordingP
                 ct);
         }
 
+        // Dùng Firebase URL để AI service tự download trong background (không re-upload qua BookingService)
+        Guid? aiTranscriptId = null;
+        bool aiOk = false;
+        if (!string.IsNullOrWhiteSpace(firebaseUrl))
+        {
+            aiTranscriptId = await _transcription.TriggerTranscriptionAsync(
+                msg.BookingId,
+                firebaseUrl.Trim(),
+                $"Zoom recording {msg.MeetingId}",
+                msg.ContentType,
+                ct);
+            aiOk = aiTranscriptId.HasValue;
+        }
+        else
+        {
+            _logger.LogWarning(
+                "Mirror to Firebase failed for booking {BookingId} — skipping AI transcription.",
+                msg.BookingId);
+        }
+
         var booking = await _unitOfWork.Bookings
             .FindAsync(b => b.Id == msg.BookingId)
             .FirstOrDefaultAsync(ct);
@@ -89,10 +101,8 @@ public class ZoomRecordingProcessingRequestedConsumer : IConsumer<ZoomRecordingP
             if (aiOk)
             {
                 lines.Add("[AI Recording Upload]: success");
-                if (!string.IsNullOrWhiteSpace(aiTranscriptId))
-                {
-                    lines.Add($"[AI Audio Transcript Id]: {aiTranscriptId}");
-                }
+                if (aiTranscriptId.HasValue)
+                    lines.Add($"[AI Audio Transcript Id]: {aiTranscriptId.Value}");
             }
 
             if (lines.Count > 0)
@@ -105,11 +115,11 @@ public class ZoomRecordingProcessingRequestedConsumer : IConsumer<ZoomRecordingP
         }
 
         _logger.LogInformation(
-            "===== ZOOM RECORDING PROCESSING FULLY COMPLETED =====\nBookingId: {BookingId}\nFirebase Uploaded: {Fb}\nAI Uploaded: {Ai}\nTranscriptId: {TranscriptId}\n=====================================================",
+            "===== ZOOM RECORDING PROCESSING FULLY COMPLETED =====\nBookingId: {BookingId}\nFirebase Uploaded: {Fb}\nAI Triggered: {Ai}\nTranscriptId: {TranscriptId}\n=====================================================",
             msg.BookingId,
             firebaseUrl != null ? "YES" : "NO",
             aiOk ? "YES" : "NO",
-            string.IsNullOrWhiteSpace(aiTranscriptId) ? "N/A" : aiTranscriptId);
+            aiTranscriptId.HasValue ? aiTranscriptId.Value.ToString() : "N/A");
     }
 
     private static string RedactUrl(string url)

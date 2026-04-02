@@ -12,6 +12,8 @@ public class AudioTranscript : AuditableEntity
 
     public string? OriginalFileName { get; set; }
     public string? OriginalFilePath { get; set; }
+    /// <summary>URL nguồn khi upload-from-url. Background worker sẽ download về và set OriginalFilePath.</summary>
+    public string? SourceUrl { get; set; }
     public string? ExtractedAudioPath { get; set; }
     public string? MimeType { get; set; }
     public long? FileSizeBytes { get; set; }
