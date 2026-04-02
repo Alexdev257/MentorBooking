@@ -15,7 +15,8 @@
       "Bash(python:*)",
       "Bash(py --version)",
       "Bash(where python*)",
-      "Bash(py:*)"
+      "Bash(py:*)",
+      "Bash(dotnet ef:*)"
     ]
   }
 }

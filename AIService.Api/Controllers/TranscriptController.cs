@@ -76,6 +76,39 @@ public class TranscriptController : ControllerBase
         return StatusCode(StatusCodes.Status202Accepted, result);
     }
 
+    /// <summary>Queue transcript từ URL công khai (Firebase <c>?alt=media</c>, v.v.). BookingService gọi endpoint này sau khi mirror Zoom → Firebase.</summary>
+    [HttpPost("upload-from-url")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(CommonResponse<TranscriptUploadResponseDto>), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(typeof(CommonResponse<TranscriptUploadResponseDto>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UploadFromUrl(
+        [FromBody] UploadFromUrlRequestDto? request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.Url))
+        {
+            var err = new CommonResponse<TranscriptUploadResponseDto>
+            {
+                IsSuccess = false,
+                Message = "Request body với url là bắt buộc."
+            };
+            return BadRequest(err);
+        }
+
+        var userId = GetUserIdFromClaim();
+        var result = await _transcriptService.UploadFromUrlAsync(
+            request.Url.Trim(),
+            request.Title,
+            request.SourceType,
+            request.ContentType,
+            userId,
+            cancellationToken);
+
+        if (!result.IsSuccess)
+            return BadRequest(result);
+        return StatusCode(StatusCodes.Status202Accepted, result);
+    }
+
     [HttpPost("{id:guid}/summarize")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(CommonResponse<SummarizeQueuedResponseDto>), StatusCodes.Status202Accepted)]
