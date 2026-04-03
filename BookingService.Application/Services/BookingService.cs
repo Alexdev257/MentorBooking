@@ -35,7 +35,7 @@ public class BookingService : IBookingService
 
     public async Task<CommonResponse<List<SlotResponseDto>>> GetAvailableSlotsAsync(Guid mentorId, DateTime? from, DateTime? to, bool includeBooked = false, CancellationToken cancellationToken = default)
     {
-        var query = _unitOfWork.AvailabilitySlots.FindAsync(s => s.MentorId == mentorId);
+        var query = _unitOfWork.AvailabilitySlots.FindAsync(s => s.MentorId == mentorId && !s.IsDeleted);
         if (!includeBooked)
             query = query.Where(s => !s.IsBooked);
         if (from.HasValue)
@@ -298,8 +298,8 @@ public class BookingService : IBookingService
                     mentorName,
                     booking.Topic ?? "Mentor Session",
                     joinUrl,
-                    booking.ScheduleStart,
-                    booking.ScheduleEnd
+                    booking.ScheduleStart.AddHours(7),
+                    booking.ScheduleEnd.AddHours(7)
                 ), cancellationToken);
             }
         }
@@ -314,8 +314,8 @@ public class BookingService : IBookingService
                 mentorName,
                 booking.Topic ?? "Mentor Session",
                 hostUrl,
-                booking.ScheduleStart,
-                booking.ScheduleEnd
+                booking.ScheduleStart.AddHours(7),
+                booking.ScheduleEnd.AddHours(7)
             ), cancellationToken);
         }
 

@@ -272,6 +272,26 @@ public class AdminAuthService : IAdminAuthService
         };
     }
 
+    public async Task<CommonResponse<PaginationResponse<TeacherResponseDto>>> GetAllTeacherForMenteesAsync(PaginationRequest request, CancellationToken cancellationToken = default)
+    {
+        var query = _unitOfWork.Teachers.GetAllAsync().Where(x => !x.IsDeleted);
+        var paged = await _queryablePager.ToPagedListAsync(query, request.PageNumber, request.PageSize, cancellationToken);
+        var dtoItems = _mapper.Map<List<TeacherResponseDto>>(paged.Items);
+        var result = new PaginationResponse<TeacherResponseDto>
+        {
+            Items = dtoItems,
+            TotalItems = paged.TotalItems,
+            PageNumber = paged.PageNumber,
+            PageSize = paged.PageSize
+        };
+        return new CommonResponse<PaginationResponse<TeacherResponseDto>>
+        {
+            IsSuccess = true,
+            Message = "Success",
+            Data = result
+        };
+    }
+
     public async Task<CommonResponse<TeacherResponseDto?>> GetTeacherByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var teacher = await _unitOfWork.Teachers.GetByIdAsync(id);
