@@ -194,6 +194,13 @@ public class AdminAuthService : IAdminAuthService
             return response;
         }
 
+        var user = await _unitOfWork.Users.GetByIdAsync(student.UserId);
+        if (user == null)
+        {
+            response.Message = "Student not found";
+            return response;
+        }
+
         if (request.Avatar is { Length: > 0 } av)
         {
             if (!string.IsNullOrWhiteSpace(student.AvatarUrl))
@@ -202,12 +209,15 @@ public class AdminAuthService : IAdminAuthService
             await using var stream = av.OpenReadStream();
             var avatarUrl = await _storageService.UploadFileAsync(fileName, stream);
             student.AvatarUrl = avatarUrl;
+            user.AvatarUrl = avatarUrl;
         }
 
         student.FullName = request.FullName;
+        user.Fullname = request.FullName;
         student.StudentCode = request.StudentCode;
         student.IsActive = request.IsActive;
         _unitOfWork.Students.UpdateAsync(student);
+        _unitOfWork.Users.UpdateAsync(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         response.IsSuccess = true;
         response.Message = "Student updated successfully";
@@ -243,7 +253,17 @@ public class AdminAuthService : IAdminAuthService
             response.Message = "Student not found";
             return response;
         }
+        var user = await _unitOfWork.Users.GetByIdAsync(student.UserId);
+        if (user == null)
+        {
+            response.Message = "Student not found";
+            return response;
+        }
         student.IsActive = false;
+        student.IsDeleted = true;
+        student.DeletedAt = DateTime.UtcNow;
+        user.IsDeleted = true;
+        user.DeletedAt = DateTime.UtcNow;
         _unitOfWork.Students.UpdateAsync(student);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         response.IsSuccess = true;
@@ -311,6 +331,13 @@ public class AdminAuthService : IAdminAuthService
             return response;
         }
 
+        var user = await _unitOfWork.Users.GetByIdAsync(teacher.UserId);
+        if (user == null)
+        {
+            response.Message = "Teacher not found";
+            return response;
+        }
+
         if (request.Avatar is { Length: > 0 } av)
         {
             if (!string.IsNullOrWhiteSpace(teacher.AvatarUrl))
@@ -319,13 +346,16 @@ public class AdminAuthService : IAdminAuthService
             await using var stream = av.OpenReadStream();
             var avatarUrl = await _storageService.UploadFileAsync(fileName, stream);
             teacher.AvatarUrl = avatarUrl;
+            user.AvatarUrl = avatarUrl;
         }
 
         teacher.FullName = request.FullName;
+        user.Fullname = request.FullName;
         teacher.Department = request.Department;
         teacher.Specialization = request.Specialization;
         teacher.IsActive = request.IsActive;
         _unitOfWork.Teachers.UpdateAsync(teacher);
+        _unitOfWork.Users.UpdateAsync(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         response.IsSuccess = true;
         response.Message = "Teacher updated successfully";
@@ -360,8 +390,20 @@ public class AdminAuthService : IAdminAuthService
             response.Message = "Teacher not found";
             return response;
         }
+        var user = await _unitOfWork.Users.GetByIdAsync(teacher.UserId);
+        if (user == null)
+        {
+            response.Message = "Teacher not found";
+            return response;
+        }
         teacher.IsActive = false;
+        teacher.IsDeleted = true;
+        teacher.DeletedAt = DateTime.UtcNow;
+        user.IsDeleted = true;
+        user.DeletedAt = DateTime.UtcNow;
+
         _unitOfWork.Teachers.UpdateAsync(teacher);
+        _unitOfWork.Users.UpdateAsync(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         response.IsSuccess = true;
         response.Message = "Teacher deactivated successfully (soft delete)";
