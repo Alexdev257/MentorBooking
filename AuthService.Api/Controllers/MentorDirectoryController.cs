@@ -22,7 +22,7 @@ public class MentorDirectoryController : ControllerBase
     public async Task<IActionResult> GetTeachersAsync([FromQuery] PaginationRequest? request, CancellationToken cancellationToken)
     {
         request ??= new PaginationRequest();
-        var result = await _adminAuthService.GetAllTeachersAsync(request, cancellationToken);
+        var result = await _adminAuthService.GetAllTeacherForMenteesAsync(request, cancellationToken);
         return result.IsSuccess ? Ok(result) : BadRequest(result);
     }
 
