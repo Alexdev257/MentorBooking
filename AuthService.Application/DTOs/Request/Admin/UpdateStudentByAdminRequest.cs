@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AuthService.Application.DTOs.Request.Admin;
 
@@ -9,8 +10,9 @@ public class UpdateStudentByAdminRequest
     [MaxLength(255)]
     public string FullName { get; set; } = string.Empty;
 
-    [MaxLength(500)]
-    public IFormFile Avatar { get; set; }
+    /// <summary>Ảnh mới (tùy chọn). Bỏ trống để giữ ảnh hiện tại.</summary>
+    [FromForm(Name = "Avatar")]
+    public IFormFile? Avatar { get; set; }
 
     [MaxLength(50)]
     public string? StudentCode { get; set; }

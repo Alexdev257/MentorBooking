@@ -188,24 +188,36 @@ public class AdminAuthService : IAdminAuthService
     {
         var response = new CommonResponse<StudentResponseDto> { IsSuccess = false };
         var student = await _unitOfWork.Students.GetByIdAsync(id);
-        await _storageService.DeleteFileFromUrlAsync(student.AvatarUrl);
         if (student == null)
         {
             response.Message = "Student not found";
             return response;
         }
-        var fileName = $"avatars/{Guid.NewGuid()}_{request.Avatar.FileName}";
 
-        using var stream = request.Avatar.OpenReadStream();
+        var user = await _unitOfWork.Users.GetByIdAsync(student.UserId);
+        if (user == null)
+        {
+            response.Message = "Student not found";
+            return response;
+        }
 
-        var avatarUrl = await _storageService.UploadFileAsync(
-            fileName,
-            stream);
+        if (request.Avatar is { Length: > 0 } av)
+        {
+            if (!string.IsNullOrWhiteSpace(student.AvatarUrl))
+                await _storageService.DeleteFileFromUrlAsync(student.AvatarUrl);
+            var fileName = $"avatars/{Guid.NewGuid()}_{av.FileName}";
+            await using var stream = av.OpenReadStream();
+            var avatarUrl = await _storageService.UploadFileAsync(fileName, stream);
+            student.AvatarUrl = avatarUrl;
+            user.AvatarUrl = avatarUrl;
+        }
+
         student.FullName = request.FullName;
-        student.AvatarUrl = avatarUrl;
+        user.Fullname = request.FullName;
         student.StudentCode = request.StudentCode;
         student.IsActive = request.IsActive;
         _unitOfWork.Students.UpdateAsync(student);
+        _unitOfWork.Users.UpdateAsync(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         response.IsSuccess = true;
         response.Message = "Student updated successfully";
@@ -241,7 +253,17 @@ public class AdminAuthService : IAdminAuthService
             response.Message = "Student not found";
             return response;
         }
+        var user = await _unitOfWork.Users.GetByIdAsync(student.UserId);
+        if (user == null)
+        {
+            response.Message = "Student not found";
+            return response;
+        }
         student.IsActive = false;
+        student.IsDeleted = true;
+        student.DeletedAt = DateTime.UtcNow;
+        user.IsDeleted = true;
+        user.DeletedAt = DateTime.UtcNow;
         _unitOfWork.Students.UpdateAsync(student);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         response.IsSuccess = true;
@@ -253,6 +275,26 @@ public class AdminAuthService : IAdminAuthService
     public async Task<CommonResponse<PaginationResponse<TeacherResponseDto>>> GetAllTeachersAsync(PaginationRequest request, CancellationToken cancellationToken = default)
     {
         var query = _unitOfWork.Teachers.GetAllAsync();
+        var paged = await _queryablePager.ToPagedListAsync(query, request.PageNumber, request.PageSize, cancellationToken);
+        var dtoItems = _mapper.Map<List<TeacherResponseDto>>(paged.Items);
+        var result = new PaginationResponse<TeacherResponseDto>
+        {
+            Items = dtoItems,
+            TotalItems = paged.TotalItems,
+            PageNumber = paged.PageNumber,
+            PageSize = paged.PageSize
+        };
+        return new CommonResponse<PaginationResponse<TeacherResponseDto>>
+        {
+            IsSuccess = true,
+            Message = "Success",
+            Data = result
+        };
+    }
+
+    public async Task<CommonResponse<PaginationResponse<TeacherResponseDto>>> GetAllTeacherForMenteesAsync(PaginationRequest request, CancellationToken cancellationToken = default)
+    {
+        var query = _unitOfWork.Teachers.GetAllAsync().Where(x => !x.IsDeleted);
         var paged = await _queryablePager.ToPagedListAsync(query, request.PageNumber, request.PageSize, cancellationToken);
         var dtoItems = _mapper.Map<List<TeacherResponseDto>>(paged.Items);
         var result = new PaginationResponse<TeacherResponseDto>
@@ -283,25 +325,37 @@ public class AdminAuthService : IAdminAuthService
     {
         var response = new CommonResponse<TeacherResponseDto> { IsSuccess = false };
         var teacher = await _unitOfWork.Teachers.GetByIdAsync(id);
-        await _storageService.DeleteFileFromUrlAsync(teacher.AvatarUrl);
         if (teacher == null)
         {
             response.Message = "Teacher not found";
             return response;
         }
-        var fileName = $"avatars/{Guid.NewGuid()}_{request.Avatar.FileName}";
 
-        using var stream = request.Avatar.OpenReadStream();
+        var user = await _unitOfWork.Users.GetByIdAsync(teacher.UserId);
+        if (user == null)
+        {
+            response.Message = "Teacher not found";
+            return response;
+        }
 
-        var avatarUrl = await _storageService.UploadFileAsync(
-            fileName,
-            stream);
+        if (request.Avatar is { Length: > 0 } av)
+        {
+            if (!string.IsNullOrWhiteSpace(teacher.AvatarUrl))
+                await _storageService.DeleteFileFromUrlAsync(teacher.AvatarUrl);
+            var fileName = $"avatars/{Guid.NewGuid()}_{av.FileName}";
+            await using var stream = av.OpenReadStream();
+            var avatarUrl = await _storageService.UploadFileAsync(fileName, stream);
+            teacher.AvatarUrl = avatarUrl;
+            user.AvatarUrl = avatarUrl;
+        }
+
         teacher.FullName = request.FullName;
-        teacher.AvatarUrl = avatarUrl;
+        user.Fullname = request.FullName;
         teacher.Department = request.Department;
         teacher.Specialization = request.Specialization;
         teacher.IsActive = request.IsActive;
         _unitOfWork.Teachers.UpdateAsync(teacher);
+        _unitOfWork.Users.UpdateAsync(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         response.IsSuccess = true;
         response.Message = "Teacher updated successfully";
@@ -336,12 +390,43 @@ public class AdminAuthService : IAdminAuthService
             response.Message = "Teacher not found";
             return response;
         }
+        var user = await _unitOfWork.Users.GetByIdAsync(teacher.UserId);
+        if (user == null)
+        {
+            response.Message = "Teacher not found";
+            return response;
+        }
         teacher.IsActive = false;
+        teacher.IsDeleted = true;
+        teacher.DeletedAt = DateTime.UtcNow;
+        user.IsDeleted = true;
+        user.DeletedAt = DateTime.UtcNow;
+
         _unitOfWork.Teachers.UpdateAsync(teacher);
+        _unitOfWork.Users.UpdateAsync(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         response.IsSuccess = true;
         response.Message = "Teacher deactivated successfully (soft delete)";
         response.Data = true;
         return response;
+    }
+
+    public async Task<CommonResponse<UserInfoDto?>> GetUserInfoByIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null)
+            return new CommonResponse<UserInfoDto?> { IsSuccess = false, Message = "User not found", Data = null };
+
+        return new CommonResponse<UserInfoDto?>
+        {
+            IsSuccess = true,
+            Message = "Success",
+            Data = new UserInfoDto
+            {
+                UserId = user.Id,
+                Email = user.Email,
+                FullName = user.Fullname
+            }
+        };
     }
 }

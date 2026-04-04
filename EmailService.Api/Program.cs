@@ -12,7 +12,10 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.AddServiceDefaults();
-        builder.Services.AddScoped<EmailSender>();
+        builder.Services.AddHttpClient<EmailSender>((_, http) =>
+        {
+            http.Timeout = TimeSpan.FromMinutes(2);
+        });
 
         builder.Services.AddMessageBus(builder.Configuration, typeof(SendOtpRegisterConsumer).Assembly);
 

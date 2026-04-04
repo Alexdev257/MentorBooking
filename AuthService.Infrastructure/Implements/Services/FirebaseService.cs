@@ -1,4 +1,4 @@
-﻿using Google.Apis.Auth.OAuth2;
+using Google.Apis.Auth.OAuth2;
 using Google.Apis.Storage.v1.Data;
 using Google.Cloud.Storage.V1;
 using Microsoft.Extensions.Configuration;
@@ -13,17 +13,64 @@ namespace AuthService.Infrastructure.Implements.Services
 {
     public class FirebaseService : IStorageService
     {
-        private readonly StorageClient _storageClient;
+        private readonly StorageClient? _storageClient;
         private readonly string _bucketName;
 
         public FirebaseService(IConfiguration configuration)
         {
-            var credentialPath = configuration["Firebase:CredentialPath"];
-            _bucketName = configuration["Firebase:BucketName"];
+            _bucketName = configuration["Firebase:BucketName"] ?? string.Empty;
 
-            var credential = GoogleCredential.FromFile(credentialPath);
+            var credential = TryLoadGoogleCredential(configuration);
+            if (credential == null)
+            {
+                Console.WriteLine(
+                    "[WARNING] FirebaseService: no credentials. Set Firebase__CredentialJson, Firebase__CredentialJsonBase64, Firebase__CredentialPath (existing file), or GOOGLE_APPLICATION_CREDENTIALS. Upload/delete will fail until configured.");
+                _storageClient = null;
+                return;
+            }
 
             _storageClient = StorageClient.Create(credential);
+        }
+
+        /// <summary>
+        /// Thứ tự: JSON trong config (Render secret) → Base64 JSON → file CredentialPath → biến môi trường GOOGLE_APPLICATION_CREDENTIALS (đường dẫn file).
+        /// </summary>
+        private static GoogleCredential? TryLoadGoogleCredential(IConfiguration configuration)
+        {
+            var json = configuration["Firebase:CredentialJson"];
+            if (!string.IsNullOrWhiteSpace(json))
+                return GoogleCredential.FromJson(json.Trim());
+
+            var b64 = configuration["Firebase:CredentialJsonBase64"];
+            if (!string.IsNullOrWhiteSpace(b64))
+            {
+                var bytes = Convert.FromBase64String(b64.Trim());
+                return GoogleCredential.FromJson(Encoding.UTF8.GetString(bytes));
+            }
+
+            var credentialPath = configuration["Firebase:CredentialPath"];
+            if (!string.IsNullOrWhiteSpace(credentialPath) && File.Exists(credentialPath))
+                return GoogleCredential.FromFile(credentialPath);
+
+            const string defaultLocalFileName = "mentorbookingproject-firebase-adminsdk-fbsvc-a7290ef766.json";
+            if (File.Exists(defaultLocalFileName))
+                return GoogleCredential.FromFile(defaultLocalFileName);
+
+            var gac = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+            if (!string.IsNullOrWhiteSpace(gac) && File.Exists(gac))
+                return GoogleCredential.FromFile(gac);
+
+            return null;
+        }
+
+        private void EnsureStorageConfigured()
+        {
+            if (_storageClient == null)
+                throw new InvalidOperationException(
+                    "Firebase Storage chưa được cấu hình. Trên Render: thêm secret Firebase__CredentialJson (toàn bộ JSON service account) hoặc Firebase__CredentialJsonBase64 (file JSON đã base64), và Firebase__BucketName. Không cần đẩy file .json lên repo.");
+
+            if (string.IsNullOrWhiteSpace(_bucketName))
+                throw new InvalidOperationException("Firebase Storage: thiếu Firebase__BucketName.");
         }
         public async Task<string> UploadFileAsync(
         string fileName,
@@ -96,6 +143,8 @@ namespace AuthService.Infrastructure.Implements.Services
 
             try
             {
+                EnsureStorageConfigured();
+
                 // 1️ Tạo tên file duy nhất
                 var extension = Path.GetExtension(fileName).ToLower();
                 var uniqueFileName = $"{Guid.NewGuid()}{extension}";
@@ -125,30 +174,40 @@ namespace AuthService.Infrastructure.Implements.Services
                 var objectName = $"Avatar/{uniqueFileName}";
 
                 // 4️ Upload
-                var storageObject = await _storageClient.UploadObjectAsync(
+                var storageObject = await _storageClient!.UploadObjectAsync(
                     _bucketName,
                     objectName,
                     contentType,
                     fileStream
                 );
 
-                // 5️ Set public
-                storageObject.Acl = new List<ObjectAccessControl>
-        {
-            new ObjectAccessControl
-            {
-                Entity = "allUsers",
-                Role = "READER"
-            }
-        };
+                // Legacy object ACL (allUsers) often fails on Firebase / GCS buckets with
+                // "uniform bucket-level access". Upload already succeeded — skip ACL in that case.
+                try
+                {
+                    storageObject.Acl = new List<ObjectAccessControl>
+                    {
+                        new ObjectAccessControl
+                        {
+                            Entity = "allUsers",
+                            Role = "READER"
+                        }
+                    };
+                    await _storageClient!.UpdateObjectAsync(storageObject);
+                }
+                catch (Exception aclEx)
+                {
+                    Console.WriteLine(
+                        "[FirebaseService] Object ACL update skipped or failed (uniform bucket-level access is common on Firebase). " +
+                        "Use bucket IAM (e.g. allUsers → Storage Object Viewer) or signed URLs if the URL must be public. " +
+                        aclEx.Message);
+                }
 
-                await _storageClient.UpdateObjectAsync(storageObject);
-
-                // 6️ Trả URL chuẩn Firebase (KHÔNG bị download)
                 return $"https://firebasestorage.googleapis.com/v0/b/{_bucketName}/o/{Uri.EscapeDataString(objectName)}?alt=media";
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[FirebaseService] Upload failed (see inner exception):{Environment.NewLine}{ex}");
                 throw new InvalidOperationException("Error uploading file to Firebase Storage.", ex);
             }
         }
@@ -157,6 +216,8 @@ namespace AuthService.Infrastructure.Implements.Services
         {
             try
             {
+                EnsureStorageConfigured();
+
                 if (string.IsNullOrWhiteSpace(fileUrl))
                     throw new ArgumentException("File URL is required.");
 
@@ -182,7 +243,7 @@ namespace AuthService.Infrastructure.Implements.Services
                 // Decode %2F thành /
                 var objectName = Uri.UnescapeDataString(encodedObjectName);
 
-                await _storageClient.DeleteObjectAsync(bucketName, objectName);
+                await _storageClient!.DeleteObjectAsync(bucketName, objectName);
             }
             catch (Exception ex)
             {

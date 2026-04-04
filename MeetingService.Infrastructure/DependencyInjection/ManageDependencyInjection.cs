@@ -1,4 +1,7 @@
-﻿using MeetingService.Application.Interfaces.Repositories;
+using MeetingService.Application.Consumers;
+using MeetingService.Application.Interfaces.Repositories;
+using MeetingService.Application.Interfaces.Services;
+using MeetingService.Application.Services;
 using MeetingService.Infrastructure.Implements.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
@@ -26,23 +29,32 @@ namespace MeetingService.Infrastructure.DependencyInjection
         {
             services.AddDatabase(configuration);
             services.AddScopedInterface();
-            services.AddMediatRInfrastructure(configuration);
             services.AddCorsExtentions();
             services.AddJwtAuthentication(configuration);
             services.AddAuthorizationRole();
             services.AddSharedSwaggerGen("Meeting Service API");
 
-            services.AddMessageBus(configuration);
+            var applicationAssembly = Assembly.Load("MeetingService.Application");
+            //services.AddMessageBus(configuration, typeof(BookingAcceptedConsumer).Assembly);
+            services.AddMessageBus(configuration, applicationAssembly);
             return services;
         }
 
         private static void AddDatabase(this IServiceCollection services, IConfiguration configuration)
         {
+            var connectionString =
+                configuration.GetConnectionString("meeting-db") ??
+                configuration.GetConnectionString("DefaultConnection");
+
+            if (string.IsNullOrWhiteSpace(connectionString))
+                throw new InvalidOperationException(
+                    "Missing connection string. Expected 'meeting-db' (Aspire) or 'DefaultConnection' (local).");
+
+            connectionString = Shared.Infrastructure.Persistence.ConnectionStringHelper.Normalize(connectionString);
+
             services.AddDbContext<MeetingService.Infrastructure.Persistence.MeetingApplicationDbContext>(options =>
             {
-                //options.UseMySql(configuration.GetConnectionString("DefaultConnection"),
-                //    ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection")));
-                options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+                options.UseNpgsql(connectionString);
             });
 
             services.AddScoped<DbContext>(provider => provider.GetService<MeetingService.Infrastructure.Persistence.MeetingApplicationDbContext>()!);
@@ -51,18 +63,7 @@ namespace MeetingService.Infrastructure.DependencyInjection
         private static void AddScopedInterface(this IServiceCollection service)
         {
             service.AddScoped<IMeetingUnitOfWork, UnitOfWork>();
-
-
-        }
-
-        private static void AddMediatRInfrastructure(this IServiceCollection service, IConfiguration config)
-        {
-            var applicationAssembly = Assembly.Load("MeetingService.Application");
-
-            service.AddMediatR(cfg =>
-            {
-                cfg.RegisterServicesFromAssembly(applicationAssembly);
-            });
+            service.AddScoped<IMeetingService, MeetingAppService>();
         }
 
         private static void AddCorsExtentions(this IServiceCollection service)
@@ -103,7 +104,7 @@ namespace MeetingService.Infrastructure.DependencyInjection
                         OnAuthenticationFailed = context =>
                         {
                             if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-                                context.Response.Headers.Add("Token-Expired", "true");
+                                context.Response.Headers["Token-Expired"] = "true";
                             return Task.CompletedTask;
                         },
                         // 1. Xử lý khi chưa đăng nhập hoặc Token sai (401 Unauthorized)

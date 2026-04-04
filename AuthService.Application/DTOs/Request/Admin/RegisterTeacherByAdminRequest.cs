@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AuthService.Application.DTOs.Request.Admin;
 
@@ -22,8 +23,10 @@ public class RegisterTeacherByAdminRequest
     [MaxLength(20)]
     public string? Phone { get; set; }
 
-    [MaxLength(500)]
-    public IFormFile Avatar { get; set; }
+    /// <summary>Ảnh đại diện — gửi multipart field tên <c>Avatar</c> (giống tên property).</summary>
+    [Required(ErrorMessage = "Avatar image is required")]
+    [FromForm(Name = "Avatar")]
+    public IFormFile Avatar { get; set; } = null!;
 
     [MaxLength(255)]
     public string? Department { get; set; }

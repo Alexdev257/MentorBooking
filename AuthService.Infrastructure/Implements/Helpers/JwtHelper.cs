@@ -64,7 +64,38 @@ namespace AuthService.Infrastructure.Implements.Helpers
 
         public bool IsTokenValid(string token)
         {
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(token))
+                return false;
+
+            var secretKey = _configuration["JwtSettings:SecretKey"];
+            if (string.IsNullOrEmpty(secretKey))
+                return false;
+
+            try
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.UTF8.GetBytes(secretKey);
+                var issuer = _configuration["JwtSettings:Issuer"];
+                var audience = _configuration["JwtSettings:Audience"];
+
+                tokenHandler.ValidateToken(token, new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = !string.IsNullOrEmpty(issuer),
+                    ValidIssuer = issuer,
+                    ValidateAudience = !string.IsNullOrEmpty(audience),
+                    ValidAudience = audience,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromMinutes(2)
+                }, out _);
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public DateTime ConvertUnixTimeToDateTime(long utcExpiredDate)

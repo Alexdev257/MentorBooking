@@ -56,11 +56,12 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("register-teacher")]
+    [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(CommonResponse<TeacherResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(CommonResponse<TeacherResponseDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> RegisterTeacherAsync([FromBody] RegisterTeacherByAdminRequest? request)
+    public async Task<IActionResult> RegisterTeacherAsync([FromForm] RegisterTeacherByAdminRequest? request)
     {
         if (request == null)
             return BadRequest(new CommonResponse<TeacherResponseDto> { IsSuccess = false, Message = "Request body is required" });
@@ -81,11 +82,12 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("register-student")]
+    [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> RegisterStudentAsync([FromBody] RegisterStudentByAdminRequest? request)
+    public async Task<IActionResult> RegisterStudentAsync([FromForm] RegisterStudentByAdminRequest? request)
     {
         if (request == null)
             return BadRequest(new CommonResponse<StudentResponseDto> { IsSuccess = false, Message = "Request body is required" });
@@ -137,12 +139,13 @@ public class AdminController : ControllerBase
     }
 
     [HttpPut("students/{id:guid}")]
+    [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(CommonResponse<StudentResponseDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> UpdateStudentAsync(Guid id, [FromBody] UpdateStudentByAdminRequest? request)
+    public async Task<IActionResult> UpdateStudentAsync(Guid id, [FromForm] UpdateStudentByAdminRequest? request)
     {
         if (request == null)
             return BadRequest(new CommonResponse<StudentResponseDto> { IsSuccess = false, Message = "Request body is required" });
@@ -232,12 +235,13 @@ public class AdminController : ControllerBase
     }
 
     [HttpPut("teachers/{id:guid}")]
+    [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(CommonResponse<TeacherResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(CommonResponse<TeacherResponseDto>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> UpdateTeacherAsync(Guid id, [FromBody] UpdateTeacherByAdminRequest? request)
+    public async Task<IActionResult> UpdateTeacherAsync(Guid id, [FromForm] UpdateTeacherByAdminRequest? request)
     {
         if (request == null)
             return BadRequest(new CommonResponse<TeacherResponseDto> { IsSuccess = false, Message = "Request body is required" });

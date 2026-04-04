@@ -42,6 +42,14 @@ namespace AIService.Infrastructure.Persistence.Configurations
             builder.Property(u => u.Model)
                 .HasColumnName("model");
 
+            builder.Property(u => u.Report)
+                .HasColumnName("report")
+                .IsRequired(false);
+
+            builder.Property(u => u.Mindmap)
+                .HasColumnName("mindmap")
+                .IsRequired(false);
+
             builder.Property(u => u.CreatedAt)
                 .HasColumnName("created_at")
                 .HasDefaultValueSql("now()");

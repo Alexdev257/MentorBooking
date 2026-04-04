@@ -1,0 +1,583 @@
+{
+  "info": {
+    "name": "MentorBooking API (Gateway)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "## API Gateway — tất cả service\n\n**Base URL:** `https://api-gateway-lfnu.onrender.com`\n\n### Thứ tự chạy Collection Runner\n1. Login → Login as Mentor → Login as Student\n2. List teachers (auto mentor_id) → List students (auto student_id)\n3. Create slot (mentor_token) → auto slot_id\n4. Create booking (student_token) → auto booking_id\n5. Accept booking (mentor_token)\n6. Get meeting by booking id → auto meeting_id\n7. Recordings by meeting id → auto recording_id\n8. Create review (student_token) → auto review_id\n9. Upload from URL (điền video_url trước) → auto transcript_id\n10. Get transcript (poll cho đến Completed)\n\n**Trước khi chạy:** Sửa email/password trong 'Login as Mentor' và 'Login as Student'. Điền video_url nếu muốn test AI Transcript."
+  },
+  "variable": [
+    { "key": "token", "value": "", "description": "JWT admin — sau Login" },
+    { "key": "mentor_token", "value": "", "description": "JWT mentor — sau Login as Mentor" },
+    { "key": "student_token", "value": "", "description": "JWT student — sau Login as Student" },
+    { "key": "refresh_token", "value": "", "description": "Sau Login" },
+    { "key": "mentor_id", "value": "", "description": "Auto từ List teachers" },
+    { "key": "student_id", "value": "", "description": "Auto từ List students" },
+    { "key": "slot_id", "value": "", "description": "Auto từ Create slot" },
+    { "key": "booking_id", "value": "", "description": "Auto từ Create booking" },
+    { "key": "meeting_id", "value": "", "description": "Auto từ Get meeting by booking" },
+    { "key": "recording_id", "value": "", "description": "Auto từ Recordings by meeting" },
+    { "key": "user_id", "value": "", "description": "Guid — GET /api/users/{id}" },
+    { "key": "review_id", "value": "", "description": "Auto từ Create review" },
+    { "key": "transcript_id", "value": "", "description": "Auto từ upload/ingest" },
+    { "key": "video_url", "value": "", "description": "URL video public — điền tay trước khi test AI" },
+    { "key": "zoom_meeting_id", "value": "", "description": "Zoom = Booking.GoogleEventId" },
+    { "key": "_ts", "value": "", "description": "Auto Simulate Zoom" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login (admin)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json(); var data = json.data || json;",
+            "var token = (json.data && json.data.accessToken) || json.accessToken || (data && data.accessToken);",
+            "if (token) { pm.collectionVariables.set('token', token); console.log('Admin token saved'); }",
+            "var rt = (json.data && json.data.refreshToken) || (data && data.refreshToken);",
+            "if (rt) { pm.collectionVariables.set('refresh_token', rt); }"
+          ]}}],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@gmail.com\",\n  \"password\": \"admin\"\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/auth/login", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","auth","login"] }
+          }
+        },
+        {
+          "name": "Login as Mentor",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json(); var data = json.data || json;",
+            "var token = (json.data && json.data.accessToken) || json.accessToken || (data && data.accessToken);",
+            "if (token) { pm.collectionVariables.set('mentor_token', token); console.log('Mentor token saved'); }"
+          ]}}],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"mentor@gmail.com\",\n  \"password\": \"mentor123\"\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/auth/login", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","auth","login"] },
+            "description": "Sửa email/password đúng với tài khoản mentor trong DB."
+          }
+        },
+        {
+          "name": "Login as Student",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json(); var data = json.data || json;",
+            "var token = (json.data && json.data.accessToken) || json.accessToken || (data && data.accessToken);",
+            "if (token) { pm.collectionVariables.set('student_token', token); console.log('Student token saved'); }"
+          ]}}],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"student@gmail.com\",\n  \"password\": \"student123\"\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/auth/login", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","auth","login"] },
+            "description": "Sửa email/password đúng với tài khoản student trong DB."
+          }
+        },
+        {
+          "name": "Wakeup (anti sleep)",
+          "request": {
+            "auth": { "type": "noauth" }, "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/auth", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","auth"] }
+          }
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"accessToken\": \"{{token}}\",\n  \"refreshToken\": \"{{refresh_token}}\"\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/auth/refresh", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","auth","refresh"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/auth/logout", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","auth","logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Admin",
+      "item": [
+        {
+          "name": "List students",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "var items = (json.data && json.data.items) || json.data || json.items || [];",
+            "if (Array.isArray(items) && items.length > 0) { pm.collectionVariables.set('student_id', items[0].id); console.log('student_id:', items[0].id); }"
+          ]}}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/admin/students?pageNumber=1&pageSize=10", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","admin","students"], "query": [{"key":"pageNumber","value":"1"},{"key":"pageSize","value":"10"}] }
+          }
+        },
+        {
+          "name": "Get student by id",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/admin/students/{{student_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","admin","students","{{student_id}}"] }
+          }
+        },
+        {
+          "name": "List teachers",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "var items = (json.data && json.data.items) || json.data || json.items || [];",
+            "if (Array.isArray(items) && items.length > 0) { pm.collectionVariables.set('mentor_id', items[0].id); console.log('mentor_id:', items[0].id); }"
+          ]}}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/admin/teachers?pageNumber=1&pageSize=10", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","admin","teachers"], "query": [{"key":"pageNumber","value":"1"},{"key":"pageSize","value":"10"}] }
+          }
+        },
+        {
+          "name": "Get teacher by id",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/admin/teachers/{{mentor_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","admin","teachers","{{mentor_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Users (internal)",
+      "item": [
+        {
+          "name": "Get user by id",
+          "request": {
+            "auth": { "type": "noauth" }, "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/users/{{user_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","users","{{user_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Mentors (public)",
+      "item": [
+        {
+          "name": "List mentors",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "var items = (json.data && json.data.items) || json.data || json.items || [];",
+            "if (Array.isArray(items) && items.length > 0 && !pm.collectionVariables.get('mentor_id')) { pm.collectionVariables.set('mentor_id', items[0].id); console.log('mentor_id (from mentors):', items[0].id); }"
+          ]}}],
+          "request": {
+            "auth": { "type": "noauth" }, "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/mentors?pageNumber=1&pageSize=10", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","mentors"], "query": [{"key":"pageNumber","value":"1"},{"key":"pageSize","value":"10"}] }
+          }
+        },
+        {
+          "name": "Get mentor by id",
+          "request": {
+            "auth": { "type": "noauth" }, "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/mentors/{{mentor_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","mentors","{{mentor_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Reviews",
+      "item": [
+        {
+          "name": "List reviews",
+          "request": {
+            "auth": { "type": "noauth" }, "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/reviews?pageNumber=1&pageSize=10&mentorId={{mentor_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","reviews"], "query": [{"key":"pageNumber","value":"1"},{"key":"pageSize","value":"10"},{"key":"mentorId","value":"{{mentor_id}}"}] }
+          }
+        },
+        {
+          "name": "Get review by mentor (student)",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/reviews/{{mentor_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","reviews","{{mentor_id}}"] },
+            "description": "Bearer — role Student."
+          }
+        },
+        {
+          "name": "Create review",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({key:'Authorization',value:'Bearer '+pm.collectionVariables.get('student_token')});"] }},
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('Status 2xx', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+              "var json = pm.response.json(); var r = json.data || json;",
+              "if (r && r.id) { pm.collectionVariables.set('review_id', r.id); console.log('review_id:', r.id); }"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n    \"bookingId\": \"{{booking_id}}\",\n    \"mentorId\": \"{{mentor_id}}\",\n    \"rating\": 5,\n    \"comment\": \"Test review\"\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/reviews", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","reviews"] },
+            "description": "Dùng student_token tự động."
+          }
+        },
+        {
+          "name": "Update review",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n    \"rating\": 5,\n    \"comment\": \"Updated\"\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/reviews/{{review_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","reviews","{{review_id}}"] }
+          }
+        },
+        {
+          "name": "Delete review",
+          "request": {
+            "method": "DELETE", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/reviews/{{review_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","reviews","{{review_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Test (storage)",
+      "item": [
+        {
+          "name": "Upload avatar (test)",
+          "request": {
+            "auth": { "type": "noauth" }, "method": "POST", "header": [],
+            "body": { "mode": "formdata", "formdata": [{"key":"file","type":"file","src":"","description":"Chọn ảnh"}] },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/test/upload-avatar", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","test","upload-avatar"] }
+          }
+        },
+        {
+          "name": "Delete file by URL",
+          "request": {
+            "auth": { "type": "noauth" }, "method": "DELETE", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/test/delete-by-url?fileUrl=https://example.com/file.png", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","test","delete-by-url"], "query": [{"key":"fileUrl","value":"https://example.com/file.png"}] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Slots (mentor)",
+      "item": [
+        {
+          "name": "List slots",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/mentors/{{mentor_id}}/slots?includeBooked=false", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","mentors","{{mentor_id}}","slots"], "query": [{"key":"includeBooked","value":"false"}] }
+          }
+        },
+        {
+          "name": "Get slot by id",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/mentors/{{mentor_id}}/slots/{{slot_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","mentors","{{mentor_id}}","slots","{{slot_id}}"] }
+          }
+        },
+        {
+          "name": "Create slot",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({key:'Authorization',value:'Bearer '+pm.collectionVariables.get('mentor_token')});"] }},
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('Status 2xx', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+              "var json = pm.response.json(); var slot = json.data || json;",
+              "if (slot && slot.id) { pm.collectionVariables.set('slot_id', slot.id); console.log('slot_id:', slot.id); }"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n    \"startAt\": \"2026-12-01T09:00:00Z\",\n    \"endAt\": \"2026-12-01T10:00:00Z\"\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/mentors/{{mentor_id}}/slots", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","mentors","{{mentor_id}}","slots"] },
+            "description": "Dùng mentor_token tự động."
+          }
+        },
+        {
+          "name": "Update slot",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({key:'Authorization',value:'Bearer '+pm.collectionVariables.get('mentor_token')});"] }}],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n    \"startAt\": \"2026-12-01T09:00:00Z\",\n    \"endAt\": \"2026-12-01T10:00:00Z\"\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/mentors/{{mentor_id}}/slots/{{slot_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","mentors","{{mentor_id}}","slots","{{slot_id}}"] }
+          }
+        },
+        {
+          "name": "Delete slot",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({key:'Authorization',value:'Bearer '+pm.collectionVariables.get('mentor_token')});"] }}],
+          "request": {
+            "method": "DELETE", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/mentors/{{mentor_id}}/slots/{{slot_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","mentors","{{mentor_id}}","slots","{{slot_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Booking",
+      "item": [
+        {
+          "name": "Get Zoom access token (debug)",
+          "request": {
+            "auth": { "type": "noauth" }, "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/zoom-token", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","zoom-token"] }
+          }
+        },
+        {
+          "name": "Create booking",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({key:'Authorization',value:'Bearer '+pm.collectionVariables.get('student_token')});"] }},
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('Status 2xx', function () { pm.expect(pm.response.code).to.be.oneOf([200,201]); });",
+              "var json = pm.response.json(); var b = json.data || json;",
+              "if (b && b.id) { pm.collectionVariables.set('booking_id', b.id); console.log('booking_id:', b.id); }"
+            ]}}
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n    \"mentorId\": \"{{mentor_id}}\",\n    \"slotId\": \"{{slot_id}}\",\n    \"topic\": \"Test booking\",\n    \"notes\": \"\",\n    \"priceAmount\": 0,\n    \"currency\": \"VND\",\n    \"invitedEmails\": []\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/bookings", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","bookings"] },
+            "description": "Dùng student_token tự động. Cần mentor_id + slot_id."
+          }
+        },
+        {
+          "name": "Get booking by id",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/bookings/{{booking_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","bookings","{{booking_id}}"] }
+          }
+        },
+        {
+          "name": "List mentee bookings",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({key:'Authorization',value:'Bearer '+pm.collectionVariables.get('student_token')});"] }}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/mentees/{{student_id}}/bookings?pageNumber=1&pageSize=10", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","mentees","{{student_id}}","bookings"], "query": [{"key":"pageNumber","value":"1"},{"key":"pageSize","value":"10"}] }
+          }
+        },
+        {
+          "name": "List mentor bookings",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({key:'Authorization',value:'Bearer '+pm.collectionVariables.get('mentor_token')});"] }}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/mentors/{{mentor_id}}/bookings?pageNumber=1&pageSize=10", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","mentors","{{mentor_id}}","bookings"], "query": [{"key":"pageNumber","value":"1"},{"key":"pageSize","value":"10"}] }
+          }
+        },
+        {
+          "name": "Accept booking (mentor)",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({key:'Authorization',value:'Bearer '+pm.collectionVariables.get('mentor_token')});"] }}],
+          "request": {
+            "method": "PATCH", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/bookings/{{booking_id}}/accept", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","bookings","{{booking_id}}","accept"] },
+            "description": "Dùng mentor_token tự động."
+          }
+        },
+        {
+          "name": "Reject booking (mentor)",
+          "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.request.headers.upsert({key:'Authorization',value:'Bearer '+pm.collectionVariables.get('mentor_token')});"] }}],
+          "request": {
+            "method": "PATCH", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/bookings/{{booking_id}}/reject", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","bookings","{{booking_id}}","reject"] }
+          }
+        },
+        {
+          "name": "Cancel booking",
+          "request": {
+            "method": "PATCH", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/booking/bookings/{{booking_id}}/cancel", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","booking","bookings","{{booking_id}}","cancel"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Meeting",
+      "item": [
+        {
+          "name": "List meetings",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/meeting/meetings?pageNumber=1&pageSize=10", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","meeting","meetings"], "query": [{"key":"pageNumber","value":"1"},{"key":"pageSize","value":"10"}] }
+          }
+        },
+        {
+          "name": "Get meeting by id",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/meeting/meetings/{{meeting_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","meeting","meetings","{{meeting_id}}"] }
+          }
+        },
+        {
+          "name": "Get meeting by booking id",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json(); var m = json.data || json;",
+            "if (m && m.id) { pm.collectionVariables.set('meeting_id', m.id); console.log('meeting_id:', m.id); }"
+          ]}}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/meeting/by-booking/{{booking_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","meeting","by-booking","{{booking_id}}"] }
+          }
+        },
+        {
+          "name": "Recordings by booking id",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/meeting/by-booking/{{booking_id}}/recordings", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","meeting","by-booking","{{booking_id}}","recordings"] }
+          }
+        },
+        {
+          "name": "Recordings by meeting id",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "var items = (json.data && json.data.items) || json.data || json.items || [];",
+            "if (Array.isArray(items) && items.length > 0) { pm.collectionVariables.set('recording_id', items[0].id); console.log('recording_id:', items[0].id); }"
+          ]}}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/meeting/meetings/{{meeting_id}}/recordings", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","meeting","meetings","{{meeting_id}}","recordings"] }
+          }
+        },
+        {
+          "name": "Get recording by id",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/meeting/recordings/{{recording_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","meeting","recordings","{{recording_id}}"] }
+          }
+        },
+        {
+          "name": "Join links",
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/meeting/meetings/{{meeting_id}}/join-links", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","meeting","meetings","{{meeting_id}}","join-links"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. AI — Transcript",
+      "item": [
+        {
+          "name": "Upload from URL",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('202 Accepted', function () { pm.response.to.have.status(202); });",
+            "var json = pm.response.json();",
+            "if (json.data && json.data.id) { pm.collectionVariables.set('transcript_id', json.data.id); console.log('transcript_id:', json.data.id); }"
+          ]}}],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"url\": \"{{video_url}}\",\n  \"title\": \"Test Zoom Recording\",\n  \"sourceType\": 3,\n  \"contentType\": \"video/mp4\"\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/transcripts/upload-from-url", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","transcripts","upload-from-url"] },
+            "description": "Trả 202 ngay lập tức (không chờ download). AI background worker tự download từ video_url và xử lý. Điền video_url trước khi chạy."
+          }
+        },
+        {
+          "name": "Upload file",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('202 Accepted', function () { pm.response.to.have.status(202); });",
+            "var json = pm.response.json();",
+            "if (json.data && json.data.id) { pm.collectionVariables.set('transcript_id', json.data.id); console.log('transcript_id:', json.data.id); }"
+          ]}}],
+          "request": {
+            "auth": { "type": "noauth" }, "method": "POST", "header": [],
+            "body": { "mode": "formdata", "formdata": [{"key":"file","type":"file","src":"","description":"Chọn file video/audio từ local"},{"key":"title","value":"Test Transcript","type":"text"},{"key":"sourceType","value":"1","type":"text"}] },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/transcripts/upload", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","transcripts","upload"] },
+            "description": "Upload file từ local. Phải chọn file thủ công — không chạy được trong Collection Runner."
+          }
+        },
+        {
+          "name": "Get transcript by id",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var json = pm.response.json();",
+            "if (json.isSuccess && json.data) console.log('status:', json.data.status, '| summaryQueueStatus:', json.data.summaryQueueStatus);"
+          ]}}],
+          "request": {
+            "auth": { "type": "noauth" }, "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/transcripts/{{transcript_id}}", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","transcripts","{{transcript_id}}"] },
+            "description": "Poll request này cho đến khi status = Completed."
+          }
+        },
+        {
+          "name": "List transcripts",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status 200', function () { pm.response.to.have.status(200); });"] }}],
+          "request": {
+            "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/transcripts?pageNumber=1&pageSize=20", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","transcripts"], "query": [{"key":"pageNumber","value":"1"},{"key":"pageSize","value":"20"}] }
+          }
+        },
+        {
+          "name": "Re-summarize",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('202 Accepted', function () { pm.response.to.have.status(202); });"] }}],
+          "request": {
+            "auth": { "type": "noauth" }, "method": "POST", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/transcripts/{{transcript_id}}/summarize", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","transcripts","{{transcript_id}}","summarize"] }
+          }
+        },
+        {
+          "name": "Ingest zoom-audio (debug)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('201', function () { pm.response.to.have.status(201); });",
+            "var json = pm.response.json();",
+            "if (json.data && json.data.transcriptId) { pm.collectionVariables.set('transcript_id', json.data.transcriptId); console.log('transcript_id:', json.data.transcriptId); }"
+          ]}}],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"bookingId\": \"00000000-0000-0000-0000-000000000001\",\n  \"meetingId\": \"test-meeting-001\",\n  \"title\": \"Test Ingest\",\n  \"rawText\": \"Hello world.\",\n  \"cleanText\": \"Hello world.\",\n  \"segments\": [\n    {\n      \"startSeconds\": 0,\n      \"endSeconds\": 2,\n      \"text\": \"Hello world.\"\n    }\n  ]\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/transcripts/ingest/zoom-audio", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","transcripts","ingest","zoom-audio"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Zoom webhook",
+      "item": [
+        {
+          "name": "Health GET /api/zoom/wh",
+          "request": {
+            "auth": { "type": "noauth" }, "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/zoom/wh", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","zoom","wh"] }
+          }
+        },
+        {
+          "name": "Simulate recording.completed",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('_ts', Date.now());"] }},
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('200', function () { pm.response.to.have.status(200); });"] }}
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n    \"event\": \"recording.completed\",\n    \"event_ts\": {{_ts}},\n    \"payload\": {\n        \"object\": {\n            \"id\": \"{{zoom_meeting_id}}\",\n            \"uuid\": \"test-uuid-simulation\",\n            \"topic\": \"Test\",\n            \"recording_files\": [\n                {\n                    \"id\": \"sim-001\",\n                    \"meeting_id\": \"{{zoom_meeting_id}}\",\n                    \"file_type\": \"MP4\",\n                    \"download_url\": \"{{video_url}}\",\n                    \"play_url\": \"{{video_url}}\",\n                    \"file_size\": 52428800,\n                    \"recording_start\": \"2026-04-01T10:00:00Z\",\n                    \"recording_end\": \"2026-04-01T10:30:00Z\"\n                }\n            ]\n        }\n    }\n}" },
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/api/zoom/wh", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["api","zoom","wh"] },
+            "description": "Cần zoom_meeting_id + video_url. Flow mới: BookingService mirror lên Firebase (1 lần download) → AI service tự download từ Firebase để transcript (không re-download từ Zoom)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Sample (BookingService)",
+      "item": [
+        {
+          "name": "WeatherForecast",
+          "request": {
+            "auth": { "type": "noauth" }, "method": "GET", "header": [],
+            "url": { "raw": "https://api-gateway-lfnu.onrender.com/WeatherForecast", "host": ["https://api-gateway-lfnu.onrender.com"], "path": ["WeatherForecast"] },
+            "description": "Template API — smoke test."
+          }
+        }
+      ]
+    }
+  ]
+}

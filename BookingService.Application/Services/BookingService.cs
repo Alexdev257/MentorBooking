@@ -9,6 +9,8 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Shared.Contracts.Common.Wrappers;
 using SharedContracts.Common.Wrappers.Requests;
+using Shared.Contracts.Interfaces;
+using Shared.Contracts.Events;
 
 namespace BookingService.Application.Services;
 
@@ -17,19 +19,25 @@ public class BookingService : IBookingService
     private readonly IBookingUnitOfWork _unitOfWork;
     private readonly IQueryablePager _pager;
     private readonly IMapper _mapper;
-    private readonly IGoogleCalendarService _googleCalendarService;
+    private readonly IZoomService _zoomService;
+    private readonly IMessageProducer _messageProducer;
+    private readonly IUserService _userService;
 
-    public BookingService(IBookingUnitOfWork unitOfWork, IQueryablePager pager, IMapper mapper, IGoogleCalendarService googleCalendarService)
+    public BookingService(IBookingUnitOfWork unitOfWork, IQueryablePager pager, IMapper mapper, IZoomService zoomService, IMessageProducer messageProducer, IUserService userService)
     {
         _unitOfWork = unitOfWork;
         _pager = pager;
         _mapper = mapper;
-        _googleCalendarService = googleCalendarService;
+        _zoomService = zoomService;
+        _messageProducer = messageProducer;
+        _userService = userService;
     }
 
-    public async Task<CommonResponse<List<SlotResponseDto>>> GetAvailableSlotsAsync(Guid mentorId, DateTime? from, DateTime? to, CancellationToken cancellationToken = default)
+    public async Task<CommonResponse<List<SlotResponseDto>>> GetAvailableSlotsAsync(Guid mentorId, DateTime? from, DateTime? to, bool includeBooked = false, CancellationToken cancellationToken = default)
     {
-        var query = _unitOfWork.AvailabilitySlots.FindAsync(s => s.MentorId == mentorId && !s.IsBooked);
+        var query = _unitOfWork.AvailabilitySlots.FindAsync(s => s.MentorId == mentorId && !s.IsDeleted);
+        if (!includeBooked)
+            query = query.Where(s => !s.IsBooked);
         if (from.HasValue)
             query = query.Where(s => s.EndAt > from.Value);
         if (to.HasValue)
@@ -155,6 +163,34 @@ public class BookingService : IBookingService
             ScheduleStart = slot.StartAt,
             ScheduleEnd = slot.EndAt
         };
+
+        // Fetch mentee info from AuthService
+        var menteeInfo = await _userService.GetUserInfoAsync(menteeId, cancellationToken);
+        var menteeEmail = menteeInfo?.Email ?? "unknown@example.com";
+        var menteeName = menteeInfo?.FullName ?? "Mentee";
+
+        // Add primary mentee as a participant
+        booking.Participants.Add(new BookingParticipant
+        {
+            Id = Guid.NewGuid(),
+            BookingId = booking.Id,
+            MenteeId = menteeId,
+            Email = menteeEmail,
+            Name = menteeName
+        });
+
+        // Add invited mentees
+        foreach (var email in request.InvitedEmails)
+        {
+            booking.Participants.Add(new BookingParticipant
+            {
+                Id = Guid.NewGuid(),
+                BookingId = booking.Id,
+                Email = email,
+                Name = "Invited Guest"
+            });
+        }
+
         await _unitOfWork.BeginTransactionAsync();
         try
         {
@@ -236,16 +272,69 @@ public class BookingService : IBookingService
         }
         booking.Status = (int)BookingStatusEnum.Confirmed;
 
-        var (eventId, meetLink) = await _googleCalendarService.CreateEventWithMeetAsync(booking, cancellationToken);
-        if (!string.IsNullOrEmpty(eventId))
-            booking.GoogleEventId = eventId;
-        if (!string.IsNullOrEmpty(meetLink))
-            booking.MeetingLink = meetLink;
+        // Fetch mentor info from AuthService
+        var mentorInfo = await _userService.GetUserInfoAsync(booking.MentorId, cancellationToken);
+        var mentorEmail = mentorInfo?.Email ?? "mentor@unknown.com";
+        var mentorName = mentorInfo?.FullName ?? "Mentor";
+
+        var (meetingId, joinUrlCommon, hostUrl) = await _zoomService.CreateMeetingAsync(booking, cancellationToken);
+        if (!string.IsNullOrEmpty(meetingId))
+            booking.GoogleEventId = meetingId; // Reusing field for Zoom Meeting Id
+        
+        // Register all participants
+        var participants = await _unitOfWork.BookingParticipants.FindAsync(p => p.BookingId == booking.Id).ToListAsync(cancellationToken);
+        foreach (var participant in participants)
+        {
+            var joinUrl = await _zoomService.AddRegistrantAsync(meetingId!, participant.Email, participant.Name, null, cancellationToken);
+            if (!string.IsNullOrEmpty(joinUrl))
+            {
+                participant.ZoomJoinUrl = joinUrl;
+                _unitOfWork.BookingParticipants.UpdateAsync(participant);
+
+                // Publish email invitation event for Mentee
+                await _messageProducer.PublishAsync(new SendZoomInviteEvent(
+                    participant.Email,
+                    participant.Name,
+                    mentorName,
+                    booking.Topic ?? "Mentor Session",
+                    joinUrl,
+                    booking.ScheduleStart.AddHours(7),
+                    booking.ScheduleEnd.AddHours(7)
+                ), cancellationToken);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(hostUrl))
+        {
+            booking.MeetingLink = hostUrl; // Store Host URL for Mentor
+            
+            // Publish host invitation event for Mentor
+            await _messageProducer.PublishAsync(new SendZoomHostInviteEvent(
+                mentorEmail,
+                mentorName,
+                booking.Topic ?? "Mentor Session",
+                hostUrl,
+                booking.ScheduleStart.AddHours(7),
+                booking.ScheduleEnd.AddHours(7)
+            ), cancellationToken);
+        }
 
         _unitOfWork.Bookings.UpdateAsync(booking);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (!string.IsNullOrEmpty(joinUrlCommon))
+        {
+            await _messageProducer.PublishAsync(new BookingAcceptedEvent(
+                booking.Id,
+                booking.MentorId,
+                booking.MenteeId,
+                joinUrlCommon,
+                booking.ScheduleStart,
+                booking.ScheduleEnd
+            ), cancellationToken);
+        }
         response.IsSuccess = true;
-        response.Message = !string.IsNullOrEmpty(meetLink)
+        response.Message = !string.IsNullOrEmpty(hostUrl)
             ? "Booking accepted. Meeting link has been created."
             : "Booking accepted. Meeting link will be sent to the student.";
         response.Data = _mapper.Map<BookingResponseDto>(booking);

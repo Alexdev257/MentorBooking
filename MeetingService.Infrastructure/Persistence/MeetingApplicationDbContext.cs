@@ -1,4 +1,4 @@
-﻿using Google;
+using Google;
 using MeetingService.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Shared.Infrastructure.Persistence.Interceptors;
@@ -12,7 +12,7 @@ namespace MeetingService.Infrastructure.Persistence
 {
     public class MeetingApplicationDbContext : DbContext
     {
-        private readonly AuditableEntityInterceptor _auditableEntityInterceptor;
+        private readonly AuditableEntityInterceptor? _auditableEntityInterceptor;
 
         public MeetingApplicationDbContext()
         {
@@ -28,7 +28,8 @@ namespace MeetingService.Infrastructure.Persistence
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.AddInterceptors(_auditableEntityInterceptor);
+            if (_auditableEntityInterceptor != null)
+                optionsBuilder.AddInterceptors(_auditableEntityInterceptor);
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

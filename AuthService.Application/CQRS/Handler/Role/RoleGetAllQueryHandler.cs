@@ -1,26 +1,35 @@
-﻿using AuthService.Application.CQRS.Query.Role;
+using AuthService.Application.CQRS.Query.Role;
 using AuthService.Application.DTOs.Response;
-using AuthService.Application.Interfaces.Repositories;
+using AuthService.Domain.Enum;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AuthService.Application.CQRS.Handler.Role
 {
     public class RoleGetAllQueryHandler : IRequestHandler<RoleGetAllQuery, RoleGetAllResponse>
     {
-        private readonly IAuthUnitOfWork _unitOfWork;
-        public RoleGetAllQueryHandler(IAuthUnitOfWork unitOfWork)
+        public Task<RoleGetAllResponse> Handle(RoleGetAllQuery request, CancellationToken cancellationToken)
         {
-            _unitOfWork = unitOfWork;
-        }
-        public async Task<RoleGetAllResponse> Handle(RoleGetAllQuery request, CancellationToken cancellationToken)
-        {
-            throw new NotImplementedException();
+            var roles = Enum.GetValues(typeof(RoleNameEnum))
+                .Cast<RoleNameEnum>()
+                .Select(r => new RoleDTO
+                {
+                    Id = ((int)r).ToString(),
+                    Name = r.ToString(),
+                    Status = "Active",
+                    CreatedAt = null
+                })
+                .ToList();
+
+            return Task.FromResult(new RoleGetAllResponse
+            {
+                IsSuccess = true,
+                Message = "Success",
+                Data = roles
+            });
         }
     }
 }

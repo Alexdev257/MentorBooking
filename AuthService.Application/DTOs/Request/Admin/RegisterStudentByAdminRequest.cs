@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AuthService.Application.DTOs.Request.Admin;
 
@@ -19,8 +20,10 @@ public class RegisterStudentByAdminRequest
     [MaxLength(255)]
     public string FullName { get; set; } = string.Empty;
 
-    [MaxLength(500)]
-    public IFormFile Avatar { get; set; }
+    /// <summary>Ảnh đại diện — multipart field <c>Avatar</c>.</summary>
+    [Required(ErrorMessage = "Avatar image is required")]
+    [FromForm(Name = "Avatar")]
+    public IFormFile Avatar { get; set; } = null!;
 
     [MaxLength(50)]
     public string? StudentCode { get; set; }

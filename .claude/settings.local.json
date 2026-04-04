@@ -7,7 +7,16 @@
       "Bash(git checkout:*)",
       "Bash(git pull:*)",
       "Bash(git merge:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(find \"D:/FPT/SEM8/PRN232/MentorBooking/AIService\"* -type f -name \"*.cs\")",
+      "Bash(/tmp/ffcheck/Program.cs:*)",
+      "Read(//tmp/**)",
+      "Bash(dotnet run:*)",
+      "Bash(python:*)",
+      "Bash(py --version)",
+      "Bash(where python*)",
+      "Bash(py:*)",
+      "Bash(dotnet ef:*)"
     ]
   }
 }

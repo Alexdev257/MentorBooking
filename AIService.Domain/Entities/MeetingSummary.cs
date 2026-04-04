@@ -17,6 +17,12 @@ namespace AIService.Domain.Entities
         public string Topics { get; set; } = "[]";
         public string Sentiment { get; set; } = "{}";
 
-        public string? Model { get; set; } 
+        public string? Model { get; set; }
+
+        /// <summary>Structured meeting report as JSON (title, agenda, decisions, actionItems, followUps, highlights).</summary>
+        public string? Report { get; set; }
+
+        /// <summary>Mindmap tree as JSON (centralTopic, branches[]).</summary>
+        public string? Mindmap { get; set; }
     }
 }
