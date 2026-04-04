@@ -1,66 +1,154 @@
-
+using Microsoft.AspNetCore.Http;
 using AuthService.Infrastructure.DependencyInjection;
 using AuthService.Infrastructure.Persistence;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.EntityFrameworkCore;
-using SharedInfrastructure;
-using SharedInfrastructure.Swagger;
+using Microsoft.Extensions.Logging;
+using Microsoft.OpenApi.Models;
+using Npgsql;
+using AuthService.Api.Swagger;
+using Shared.Infrastructure;
+using Shared.Infrastructure.Swagger;
 
 namespace AuthService.Api;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.AddServiceDefaults();
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
-        //builder.Services.AddSharedSwagger();
+        builder.Services.AddSwaggerGen(options =>
+        {
+            options.MapType<IFormFile>(() => new OpenApiSchema
+            {
+                Type = "string",
+                Format = "binary",
+            });
+            options.SchemaFilter<AdminFormFileSchemaFilter>();
+            options.OperationFilter<AdminMultipartAvatarOperationFilter>();
+        });
+        //builder.Services.AddSwaggerGen(options =>
+        //{
+        //    options.SwaggerDoc("v1", new OpenApiInfo { Title = "AuthService API", Version = "v1" });
+        //    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        //    {
+        //        Name = "Authorization",
+        //        Type = SecuritySchemeType.Http,
+        //        Scheme = "Bearer",
+        //        BearerFormat = "JWT",
+        //        In = ParameterLocation.Header,
+        //        Description = "Nhập JWT (lấy từ POST /api/auth/login). Ví dụ: Bearer {token}"
+        //    });
+        //    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+        //    {
+        //        {
+        //            new OpenApiSecurityScheme
+        //            {
+        //                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+        //            },
+        //            Array.Empty<string>()
+        //        }
+        //    });
+        //});
 
         builder.Services.AddSharedInfrastructure(builder.Configuration);
         builder.Services.AddAuthServiceInfrastructure(builder.Configuration);
 
-        // Add services to the container.
+        var firebaseCredJson = builder.Configuration["Firebase:CredentialJson"];
+        var firebaseCredB64 = builder.Configuration["Firebase:CredentialJsonBase64"];
+        if (string.IsNullOrWhiteSpace(firebaseCredJson) && !string.IsNullOrWhiteSpace(firebaseCredB64))
+        {
+            var bytes = Convert.FromBase64String(firebaseCredB64.Trim());
+            firebaseCredJson = System.Text.Encoding.UTF8.GetString(bytes);
+        }
 
-        builder.Services.AddControllers();
+        var configuredCredPath = builder.Configuration["Firebase:CredentialPath"];
+        var firebaseCredPath = string.IsNullOrWhiteSpace(configuredCredPath)
+            ? "mentorbookingproject-firebase-adminsdk-fbsvc-a7290ef766.json"
+            : configuredCredPath!;
+
+        if (!string.IsNullOrWhiteSpace(firebaseCredJson))
+        {
+            FirebaseApp.Create(new AppOptions
+            {
+                Credential = GoogleCredential.FromJson(firebaseCredJson)
+            });
+            Console.WriteLine("Firebase Admin SDK initialized from CredentialJson / CredentialJsonBase64.");
+        }
+        else if (File.Exists(firebaseCredPath))
+        {
+            FirebaseApp.Create(new AppOptions
+            {
+                Credential = GoogleCredential.FromFile(firebaseCredPath)
+            });
+            Console.WriteLine("Firebase Admin SDK initialized from file.");
+        }
+        else
+        {
+            Console.WriteLine($"[WARNING] Firebase credentials not found. Set Firebase__CredentialJson or Firebase__CredentialJsonBase64 (Render), or place file at '{firebaseCredPath}'.");
+        }
+
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
         builder.Services.AddOpenApi();
 
         var app = builder.Build();
-        using (var scope = app.Services.CreateScope())
+        try
         {
+            using var scope = app.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var conn = db.Database.GetConnectionString();
-            Console.WriteLine($"?? Connection string: {conn}");
+            Console.WriteLine($"Connection string: {conn}");
 
-            var pending = db.Database.GetPendingMigrations().ToList();
-            Console.WriteLine($"?? Pending migrations: {pending.Count}");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var pending = (await db.Database.GetPendingMigrationsAsync(cts.Token)).ToList();
+            Console.WriteLine($"Pending migrations: {pending.Count}");
 
             if (pending.Any())
             {
-                Console.WriteLine("?? Running database migrations...");
-                db.Database.Migrate();
-                Console.WriteLine("? Migration completed.");
+                Console.WriteLine("Running database migrations...");
+                await db.Database.MigrateAsync(cts.Token);
+                Console.WriteLine("Migration completed.");
             }
             else
             {
-                Console.WriteLine("? No pending migrations.");
+                Console.WriteLine("No pending migrations.");
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[WARNING] Migration failed, app will start anyway: {ex.Message}");
+        }
+
+        try
+        {
+            await AuthService.Infrastructure.Persistence.DefaultAdminSeeder.SeedAsync(app.Services);
+        }
+        catch (PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            var logger = app.Services.GetRequiredService<ILogger<Program>>();
+            logger.LogError(
+                "Database table does not exist. If migrations were never applied or tables were dropped, run: DELETE FROM \"__EFMigrationsHistory\"; then restart the application to apply migrations. Error: {Message}",
+                ex.Message);
+            throw;
         }
 
         app.UseSharedInfrastructure();
         app.MapDefaultEndpoints();
 
-        // Configure the HTTP request pipeline.
+        app.UseSwagger();
+
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi();
-            app.UseSwagger();
             app.UseSwaggerUI();
         }
 
-        app.UseHttpsRedirection();
+        if (app.Environment.IsDevelopment())
+            app.UseHttpsRedirection();
         app.UseCors("AllowAll");
 
         app.UseAuthentication();
@@ -69,6 +157,6 @@ public class Program
 
         app.MapControllers();
 
-        app.Run();
+        await app.RunAsync();
     }
 }

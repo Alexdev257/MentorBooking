@@ -1,6 +1,6 @@
 ﻿using AuthService.Application.DTOs.Response.Auth;
 using MediatR;
-using SharedContracts.Interfaces;
+using Shared.Contracts.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;

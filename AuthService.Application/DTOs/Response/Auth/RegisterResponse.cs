@@ -1,6 +1,6 @@
 ﻿using AuthService.Domain.Entities;
 using AuthService.Domain.Enum;
-using SharedContracts.Common.Wrappers;
+using Shared.Contracts.Common.Wrappers;
 using System;
 using System.Collections.Generic;
 using System.Linq;

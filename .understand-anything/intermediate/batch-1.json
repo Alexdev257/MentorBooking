@@ -1,0 +1,299 @@
+{
+  "nodes": [
+    {
+      "id": "file:AIService.Application/DTOs/Transcripts/TranscriptionResult.cs",
+      "type": "file",
+      "name": "TranscriptionResult.cs",
+      "filePath": "AIService.Application/DTOs/Transcripts/TranscriptionResult.cs",
+      "summary": "Defines the TranscriptionResult DTO holding the full transcript text and a list of segments returned from the transcription service.",
+      "tags": ["dto", "data-model", "type-definition"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:AIService.Application/Interfaces/IFileStorageService.cs",
+      "type": "file",
+      "name": "IFileStorageService.cs",
+      "filePath": "AIService.Application/Interfaces/IFileStorageService.cs",
+      "summary": "Defines the IFileStorageService interface with a single SaveAsync method for persisting file streams to storage.",
+      "tags": ["interface", "type-definition", "service"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:AIService.Application/Interfaces/IMediaProcessingService.cs",
+      "type": "file",
+      "name": "IMediaProcessingService.cs",
+      "filePath": "AIService.Application/Interfaces/IMediaProcessingService.cs",
+      "summary": "Defines the IMediaProcessingService interface for extracting audio from video files into WAV format.",
+      "tags": ["interface", "type-definition", "service"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:AIService.Application/Interfaces/ITranscriptSummarizationService.cs",
+      "type": "file",
+      "name": "ITranscriptSummarizationService.cs",
+      "filePath": "AIService.Application/Interfaces/ITranscriptSummarizationService.cs",
+      "summary": "Defines the ITranscriptSummarizationService interface for optional LLM-based transcript summarization (e.g., Gemini). Includes an IsEnabled flag and a SummarizeAsync method.",
+      "tags": ["interface", "type-definition", "service"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:AIService.Application/Interfaces/ITranscriptionService.cs",
+      "type": "file",
+      "name": "ITranscriptionService.cs",
+      "filePath": "AIService.Application/Interfaces/ITranscriptionService.cs",
+      "summary": "Defines the ITranscriptionService interface for converting an audio file path into a TranscriptionResult.",
+      "tags": ["interface", "type-definition", "service"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:AIService.Application/Interfaces/Repositories/IAIUnitOfWork.cs",
+      "type": "file",
+      "name": "IAIUnitOfWork.cs",
+      "filePath": "AIService.Application/Interfaces/Repositories/IAIUnitOfWork.cs",
+      "summary": "Defines the IAIUnitOfWork interface extending IUnitOfWork with generic repositories for ActionItem, MeetingSummary, AudioTranscript, and AudioTranscriptSegment.",
+      "tags": ["interface", "repository", "type-definition"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:AIService.Application/Interfaces/Services/ITranscriptService.cs",
+      "type": "file",
+      "name": "ITranscriptService.cs",
+      "filePath": "AIService.Application/Interfaces/Services/ITranscriptService.cs",
+      "summary": "Defines the ITranscriptService interface exposing UploadAsync, GetByIdAsync, GetListAsync, and SummarizeAsync operations for transcript management.",
+      "tags": ["interface", "service", "type-definition"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:AIService.Application/Services/TranscriptService.cs",
+      "type": "file",
+      "name": "TranscriptService.cs",
+      "filePath": "AIService.Application/Services/TranscriptService.cs",
+      "summary": "Main application service implementing ITranscriptService. Orchestrates file storage, audio extraction, Whisper transcription, Gemini summarization, and persistence via IAIUnitOfWork.",
+      "tags": ["service", "api-handler", "repository"],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:AIService.Domain/Entities/ActionItem.cs",
+      "type": "file",
+      "name": "ActionItem.cs",
+      "filePath": "AIService.Domain/Entities/ActionItem.cs",
+      "summary": "Domain entity representing an action item associated with a meeting, including assignee, text, due date, and status.",
+      "tags": ["data-model", "domain entity"],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:AIService.Domain/Entities/AudioTranscript.cs",
+      "type": "file",
+      "name": "AudioTranscript.cs",
+      "filePath": "AIService.Domain/Entities/AudioTranscript.cs",
+      "summary": "Domain entity representing an audio/video transcript, including file metadata, processing status, raw/clean text, and associated segments.",
+      "tags": ["data-model", "domain entity"],
+      "complexity": "simple"
+    },
+    {
+      "id": "class:AIService.Application/Services/TranscriptService.cs:TranscriptService",
+      "type": "class",
+      "name": "TranscriptService",
+      "summary": "Concrete service class implementing ITranscriptService. Coordinates file saving, video-to-audio extraction, speech-to-text transcription, LLM summarization, and database persistence.",
+      "tags": ["service", "api-handler", "repository"],
+      "complexity": "complex"
+    },
+    {
+      "id": "func:AIService.Application/Services/TranscriptService.cs:UploadAsync",
+      "type": "func",
+      "name": "UploadAsync",
+      "summary": "Handles the full upload pipeline: saves file, optionally extracts audio from video, transcribes audio via Whisper, persists segments, and optionally summarizes via Gemini. Returns a TranscriptUploadResponseDto with full results.",
+      "tags": ["service", "api-handler"],
+      "complexity": "complex"
+    },
+    {
+      "id": "func:AIService.Application/Services/TranscriptService.cs:GetByIdAsync",
+      "type": "func",
+      "name": "GetByIdAsync",
+      "summary": "Retrieves a transcript by ID, loads its segments and latest meeting summary, maps to TranscriptDetailDto.",
+      "tags": ["service"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "func:AIService.Application/Services/TranscriptService.cs:GetListAsync",
+      "type": "func",
+      "name": "GetListAsync",
+      "summary": "Returns a paginated list of non-deleted transcripts ordered by creation date, mapped to TranscriptListItemDto.",
+      "tags": ["service"],
+      "complexity": "simple"
+    },
+    {
+      "id": "func:AIService.Application/Services/TranscriptService.cs:SummarizeAsync",
+      "type": "func",
+      "name": "SummarizeAsync",
+      "summary": "Runs Gemini summarization for an existing transcript and upserts a MeetingSummary row. Validates transcript existence, text content, and summarization service availability.",
+      "tags": ["service"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "func:AIService.Application/Services/TranscriptService.cs:UpsertMeetingSummaryAsync",
+      "type": "func",
+      "name": "UpsertMeetingSummaryAsync",
+      "summary": "Private helper that inserts or updates a MeetingSummary entity from a TranscriptSummaryDto, serializing KeyPoints, Topics and Sentiment to JSON.",
+      "tags": ["service", "repository"],
+      "complexity": "moderate"
+    },
+    {
+      "id": "func:AIService.Application/Services/TranscriptService.cs:MapMeetingSummaryToDto",
+      "type": "func",
+      "name": "MapMeetingSummaryToDto",
+      "summary": "Static helper that maps a MeetingSummary domain entity to a TranscriptSummaryDto, deserializing JSON fields.",
+      "tags": ["service", "data-model"],
+      "complexity": "simple"
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:AIService.Application/Services/TranscriptService.cs",
+      "target": "class:AIService.Application/Services/TranscriptService.cs:TranscriptService",
+      "type": "contains",
+      "direction": "outbound",
+      "weight": 1.0
+    },
+    {
+      "source": "class:AIService.Application/Services/TranscriptService.cs:TranscriptService",
+      "target": "func:AIService.Application/Services/TranscriptService.cs:UploadAsync",
+      "type": "contains",
+      "direction": "outbound",
+      "weight": 1.0
+    },
+    {
+      "source": "class:AIService.Application/Services/TranscriptService.cs:TranscriptService",
+      "target": "func:AIService.Application/Services/TranscriptService.cs:GetByIdAsync",
+      "type": "contains",
+      "direction": "outbound",
+      "weight": 1.0
+    },
+    {
+      "source": "class:AIService.Application/Services/TranscriptService.cs:TranscriptService",
+      "target": "func:AIService.Application/Services/TranscriptService.cs:GetListAsync",
+      "type": "contains",
+      "direction": "outbound",
+      "weight": 1.0
+    },
+    {
+      "source": "class:AIService.Application/Services/TranscriptService.cs:TranscriptService",
+      "target": "func:AIService.Application/Services/TranscriptService.cs:SummarizeAsync",
+      "type": "contains",
+      "direction": "outbound",
+      "weight": 1.0
+    },
+    {
+      "source": "class:AIService.Application/Services/TranscriptService.cs:TranscriptService",
+      "target": "func:AIService.Application/Services/TranscriptService.cs:UpsertMeetingSummaryAsync",
+      "type": "contains",
+      "direction": "outbound",
+      "weight": 1.0
+    },
+    {
+      "source": "class:AIService.Application/Services/TranscriptService.cs:TranscriptService",
+      "target": "func:AIService.Application/Services/TranscriptService.cs:MapMeetingSummaryToDto",
+      "type": "contains",
+      "direction": "outbound",
+      "weight": 1.0
+    },
+    {
+      "source": "class:AIService.Application/Services/TranscriptService.cs:TranscriptService",
+      "target": "file:AIService.Application/Interfaces/Services/ITranscriptService.cs",
+      "type": "implements",
+      "direction": "outbound",
+      "weight": 0.9
+    },
+    {
+      "source": "file:AIService.Application/Services/TranscriptService.cs",
+      "target": "file:AIService.Application/DTOs/Transcripts/TranscriptionResult.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Services/TranscriptService.cs",
+      "target": "file:AIService.Application/Interfaces/IFileStorageService.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Services/TranscriptService.cs",
+      "target": "file:AIService.Application/Interfaces/IMediaProcessingService.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Services/TranscriptService.cs",
+      "target": "file:AIService.Application/Interfaces/ITranscriptSummarizationService.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Services/TranscriptService.cs",
+      "target": "file:AIService.Application/Interfaces/ITranscriptionService.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Services/TranscriptService.cs",
+      "target": "file:AIService.Application/Interfaces/Repositories/IAIUnitOfWork.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Services/TranscriptService.cs",
+      "target": "file:AIService.Application/Interfaces/Services/ITranscriptService.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Services/TranscriptService.cs",
+      "target": "file:AIService.Domain/Entities/ActionItem.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Services/TranscriptService.cs",
+      "target": "file:AIService.Domain/Entities/AudioTranscript.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Interfaces/ITranscriptSummarizationService.cs",
+      "target": "file:AIService.Application/DTOs/Transcripts/TranscriptionResult.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Interfaces/ITranscriptionService.cs",
+      "target": "file:AIService.Application/DTOs/Transcripts/TranscriptionResult.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Interfaces/Repositories/IAIUnitOfWork.cs",
+      "target": "file:AIService.Domain/Entities/ActionItem.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    },
+    {
+      "source": "file:AIService.Application/Interfaces/Repositories/IAIUnitOfWork.cs",
+      "target": "file:AIService.Domain/Entities/AudioTranscript.cs",
+      "type": "imports",
+      "direction": "outbound",
+      "weight": 0.7
+    }
+  ]
+}

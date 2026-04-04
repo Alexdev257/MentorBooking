@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedKernel.Domain
+namespace Shared.Kernel.Domain
 {
     public abstract class BaseEntity
     {

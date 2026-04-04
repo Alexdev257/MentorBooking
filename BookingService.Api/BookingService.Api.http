@@ -1,0 +1,87 @@
+### ============================================
+### TEST BOOKING + CALENDAR (chạy lần lượt từng block)
+### ============================================
+### Thay email/password và các biến {{...}} bằng giá trị thực sau mỗi response.
+### AuthService chạy port 5011, BookingService port 5089.
+### ============================================
+
+@authHost = http://localhost:5011
+@bookingHost = http://localhost:5089
+
+# Sau khi gọi login, copy accessToken từ response vào đây:
+@mentorToken = 
+@menteeToken = 
+
+# Sau khi tạo slot/booking, copy id từ response vào đây:
+@mentorId = 
+@slotId = 
+@bookingId = 
+
+### ----- Bước 1: Mentor login -----
+# Response -> copy data.accessToken vào @mentorToken
+# Để lấy mentorId: decode JWT tại claim "sub" hoặc "UserId", hoặc dùng API admin nếu có
+POST {{authHost}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "mentor@example.com",
+  "password": "Mentor@123"
+}
+
+### ----- Bước 2: Mentor tạo slot -----
+# Thay {{mentorId}} trong URL bằng id thật. Response -> copy data.id vào @slotId
+POST {{bookingHost}}/api/booking/mentors/{{mentorId}}/slots
+Authorization: Bearer {{mentorToken}}
+Content-Type: application/json
+
+{
+  "startAt": "2025-03-15T14:00:00Z",
+  "endAt": "2025-03-15T15:00:00Z"
+}
+
+### ----- Bước 3: Mentee login -----
+# Response -> copy data.accessToken vào @menteeToken
+POST {{authHost}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "mentee@example.com",
+  "password": "Mentee@123"
+}
+
+### ----- Bước 4: Mentee xem slots có sẵn -----
+GET {{bookingHost}}/api/booking/mentors/{{mentorId}}/slots?from=2025-03-01&to=2025-03-31
+Authorization: Bearer {{menteeToken}}
+
+### ----- Bước 5: Mentee tạo booking -----
+# Thay {{mentorId}}, {{slotId}}. Response -> copy data.id vào @bookingId
+POST {{bookingHost}}/api/booking/bookings
+Authorization: Bearer {{menteeToken}}
+Content-Type: application/json
+
+{
+  "mentorId": "{{mentorId}}",
+  "slotId": "{{slotId}}",
+  "topic": "Ôn thi môn Toán",
+  "notes": "Cần ôn chương 1–3",
+  "priceAmount": 100000,
+  "currency": "VND"
+}
+
+### ----- Bước 6: Mentor accept booking (tạo Calendar event + Meet link) -----
+# Thay {{bookingId}}. Response có meetingLink, googleEventId nếu đã bật Google Calendar
+PATCH {{bookingHost}}/api/booking/bookings/{{bookingId}}/accept
+Authorization: Bearer {{mentorToken}}
+
+### ----- Bước 7: Xem chi tiết booking (kiểm tra meetingLink) -----
+GET {{bookingHost}}/api/booking/bookings/{{bookingId}}
+Authorization: Bearer {{menteeToken}}
+
+### ----- (Optional) Mentor xem danh sách bookings của mình -----
+GET {{bookingHost}}/api/booking/mentors/{{mentorId}}/bookings?pageNumber=1&pageSize=10
+Authorization: Bearer {{mentorToken}}
+
+### ----- (Optional) Mentee xem danh sách bookings của mình -----
+# Thay {{menteeId}} = id user mentee
+GET {{bookingHost}}/api/booking/mentees/{{menteeId}}/bookings?pageNumber=1&pageSize=10
+Authorization: Bearer {{menteeToken}}

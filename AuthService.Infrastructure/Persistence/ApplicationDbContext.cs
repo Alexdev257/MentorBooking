@@ -1,33 +1,17 @@
-﻿using AuthService.Domain.Entities;
+using AuthService.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
-using SharedInfrastructure.Persistence.Interceptors;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AuthService.Infrastructure.Persistence
 {
     public class ApplicationDbContext : DbContext
     {
-        private readonly AuditableEntityInterceptor _auditableEntityInterceptor;
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options) { }
 
-        public ApplicationDbContext()
-        {
-        }
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options,
-            AuditableEntityInterceptor auditableEntityInterceptor) : base(options)
-        {
-            _auditableEntityInterceptor = auditableEntityInterceptor;
-        }
-
-        public virtual DbSet<User> Users { get; set; }
-        public virtual DbSet<Role> Roles { get; set; }
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            optionsBuilder.AddInterceptors(_auditableEntityInterceptor);
-        }
+        public DbSet<User> Users => Set<User>();
+        public DbSet<Teacher> Teachers => Set<Teacher>();
+        public DbSet<Student> Students => Set<Student>();
+        public DbSet<Review> Reviews => Set<Review>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

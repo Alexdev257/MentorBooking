@@ -1,27 +1,45 @@
-﻿using MassTransit;
+using MassTransit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SharedContracts.Interfaces;
+using Shared.Contracts.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedInfrastructure.Bus
+namespace Shared.Infrastructure.Bus
 {
     public static class MassTransitExtensions
     {
-        public static IServiceCollection AddMessageBus(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddMessageBus(this IServiceCollection services, IConfiguration configuration, params System.Reflection.Assembly[] consumerAssemblies)
         {
+            var enabled = configuration["RabbitMQ:Enabled"];
+            var host = configuration["RabbitMQ:Host"];
+            if (string.Equals(enabled, "false", StringComparison.OrdinalIgnoreCase)
+                || string.IsNullOrWhiteSpace(host))
+            {
+                services.AddScoped<IMessageProducer, NoOpMessageProducer>();
+                return services;
+            }
+
             services.AddMassTransit(x =>
             {
+                if (consumerAssemblies != null && consumerAssemblies.Length > 0)
+                {
+                    x.AddConsumers(consumerAssemblies);
+                }
+
                 x.UsingRabbitMq((context, cfg) =>
                 {
-                    cfg.Host(configuration["MessageBroker:Host"], "/", h =>
+                    var virtualHost = configuration["RabbitMQ:VirtualHost"];
+                    if (string.IsNullOrWhiteSpace(virtualHost))
+                        virtualHost = "/";
+
+                    cfg.Host(host, virtualHost, h =>
                     {
-                        h.Username(configuration["MessageBroker:Username"]!);
-                        h.Password(configuration["MessageBroker:Password"]!);
+                        h.Username(configuration["RabbitMQ:Username"] ?? "guest");
+                        h.Password(configuration["RabbitMQ:Password"] ?? "guest");
                     });
 
                     cfg.ConfigureEndpoints(context);

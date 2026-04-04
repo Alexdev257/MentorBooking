@@ -3,7 +3,7 @@ using AuthService.Application.DTOs.Response.Auth;
 using AuthService.Application.Interfaces.Repositories;
 using AuthService.Domain.Entities;
 using MediatR;
-using SharedContracts.Interfaces;
+using Shared.Contracts.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;

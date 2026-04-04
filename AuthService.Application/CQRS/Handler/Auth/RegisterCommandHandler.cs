@@ -5,8 +5,8 @@ using AuthService.Application.Interfaces.Helpers;
 using AuthService.Application.Interfaces.Repositories;
 using AuthService.Domain.Entities;
 using MediatR;
-using SharedContracts.Events;
-using SharedContracts.Interfaces;
+using Shared.Contracts.Events;
+using Shared.Contracts.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,8 +43,8 @@ namespace AuthService.Application.CQRS.Handler.Auth
 
             if (!string.IsNullOrEmpty(request.Phone))
             {
-                var existingPhone = _unitOfWork.Users.GetAllAsync()
-                    .Any(u => u.Phone == request.Phone);
+                var existingPhone = _unitOfWork.Users.GetAllAsync().Any();
+                //.Any(u => u.Phone == request.Phone); // User entity does not have Phone field
                 if (existingPhone)
                 {
                     return new RegisterResponse
@@ -58,19 +58,12 @@ namespace AuthService.Application.CQRS.Handler.Auth
             var hashPassword = _bcryptHelper.HashPassword(request.Password);
             var user = new User
             {
-                //Id = Guid.NewGuid(),
-                FullName = request.FullName,
+                Id = Guid.NewGuid(),
                 Email = request.Email,
-                Phone = request.Phone,
                 Password = hashPassword,
-                Address = request.Address,
-                AvatarUrl = request.AvatarUrl,
-                DateOfBirth = request.DateOfBirth,
-                Gender = request.Gender,
-                IsVerified = true,
-                RoleId = Guid.Parse("d28888e9-2ba9-473a-a40f-e38cb54f9b35"),
-                Status = Domain.Enum.StatusEnum.Active,
-                
+                Fullname = request.FullName,
+                AvatarUrl = request.AvatarUrl ?? string.Empty,
+                Role = (int)AuthService.Domain.Enum.RoleNameEnum.Student,
             };
 
             //await _cacheService.SetAsync<User>($"REG_{user.Email}", user, TimeSpan.FromMinutes(15), cancellationToken);

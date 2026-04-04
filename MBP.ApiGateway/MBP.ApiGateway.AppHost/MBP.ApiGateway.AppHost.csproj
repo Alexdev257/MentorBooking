@@ -12,14 +12,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\AIService.Api\AIService.Api.csproj" />
     <ProjectReference Include="..\..\AuthService.Api\AuthService.Api.csproj" />
+    <ProjectReference Include="..\..\BookingService.Api\BookingService.Api.csproj" />
     <ProjectReference Include="..\..\EmailService.Api\EmailService.Api.csproj" />
+    <ProjectReference Include="..\..\MeetingService.Api\MeetingService.Api.csproj" />
     <ProjectReference Include="..\MBP.ApiGateway.ApiService\MBP.ApiGateway.ApiService.csproj" />
     <ProjectReference Include="..\MBP.ApiGateway.Web\MBP.ApiGateway.Web.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" Version="9.0.0" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="9.0.0" />
   </ItemGroup>
 
 </Project>

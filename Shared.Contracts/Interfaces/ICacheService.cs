@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedContracts.Interfaces
+namespace Shared.Contracts.Interfaces
 {
     public interface ICacheService
     {

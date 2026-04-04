@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedContracts.Events
+namespace Shared.Contracts.Events
 {
     public abstract record IntegrationEvent
     {

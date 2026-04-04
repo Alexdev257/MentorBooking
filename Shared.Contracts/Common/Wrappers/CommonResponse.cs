@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedContracts.Common.Wrappers
+namespace Shared.Contracts.Common.Wrappers
 {
     public class CommonResponse<T> : CommonResponseBase
     {

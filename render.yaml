@@ -1,0 +1,201 @@
+databases:
+  - name: mentorbooking-db
+    plan: free
+    databaseName: mentorbooking
+    user: mentorbooking
+
+envVarGroups:
+  - name: shared-config
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: "10000"
+      - key: JwtSettings__SecretKey
+        sync: false
+      - key: JwtSettings__Issuer
+        value: https://mentorbooking-gateway.onrender.com
+      - key: JwtSettings__Audience
+        value: https://mentorbooking-gateway.onrender.com
+      - key: RabbitMQ__Enabled
+        value: "true"
+      - key: RabbitMQ__Host
+        value: armadillo-01.rmq.cloudamqp.com
+      - key: RabbitMQ__VirtualHost
+        value: hnlprtvu
+      - key: RabbitMQ__Username
+        value: hnlprtvu
+      - key: RabbitMQ__Password
+        value: 3h55dGpfEzrtutl-rIvanvdM8KptY9mF
+
+services:
+  # ==================== AUTH SERVICE ====================
+  - type: web
+    name: auth-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./AuthService.Api/Dockerfile
+    dockerContext: .
+    envVars:
+      - fromGroup: shared-config
+      - key: ConnectionStrings__auth-db
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
+      - key: Admin__DefaultEmail
+        sync: false
+      - key: Admin__DefaultPassword
+        sync: false
+      - key: Firebase__CredentialJson
+        sync: false
+      - key: Firebase__BucketName
+        value: mentorbookingproject.firebasestorage.app
+
+  # ==================== BOOKING SERVICE ====================
+  - type: web
+    name: booking-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./BookingService.Api/Dockerfile
+    dockerContext: .
+    envVars:
+      - fromGroup: shared-config
+      - key: ConnectionStrings__booking-db
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
+      - key: ServiceUrls__AuthService
+        fromService:
+          name: auth-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ServiceUrls__AIService
+        fromService:
+          name: ai-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: Zoom__AccountId
+        sync: false
+      - key: Zoom__ClientId
+        sync: false
+      - key: Zoom__ClientSecret
+        sync: false
+      - key: Zoom__SecretToken
+        sync: false
+      # Firebase Storage (mirror Zoom recording video so users can watch without Zoom keys)
+      - key: Firebase__CredentialJson
+        sync: false
+      - key: Firebase__CredentialJsonBase64
+        sync: false
+      - key: Firebase__CredentialPath
+        sync: false
+      - key: Firebase__BucketName
+        value: mentorbookingproject.firebasestorage.app
+
+  # ==================== MEETING SERVICE ====================
+  - type: web
+    name: meeting-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./MeetingService.Api/Dockerfile
+    dockerContext: .
+    envVars:
+      - fromGroup: shared-config
+      - key: ConnectionStrings__meeting-db
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
+
+   # ==================== AI SERVICE ====================
+  - type: web
+    name: ai-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./AIService.Api/Dockerfile
+    dockerContext: .
+    envVars:
+      - fromGroup: shared-config
+      - key: ConnectionStrings__ai-db
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: mentorbooking-db
+          property: connectionString
+      - key: Gemini__ApiKey
+        sync: false
+      - key: Gemini__Model
+        value: gemini-2.5-flash
+      - key: Storage__BasePath
+        value: /tmp/uploads
+      - key: FFmpeg__BinaryFolder
+        value: /usr/bin
+      - key: Whisper__ModelPath
+        value: /tmp/models/ggml-base.bin
+      - key: Whisper__AutoDownloadIfMissing
+        value: "true"
+      - key: Whisper__ModelType
+        value: Tiny
+
+  # ==================== EMAIL SERVICE ====================
+  - type: web
+    name: email-service
+    runtime: docker
+    plan: free
+    dockerfilePath: ./EmailService.Api/Dockerfile
+    dockerContext: .
+    envVars:
+      - fromGroup: shared-config
+      - key: Mailjet__ApiKey
+        sync: false
+      - key: Mailjet__ApiSecret
+        sync: false
+      - key: Mailjet__FromEmail
+        sync: false
+      - key: Mailjet__DisplayName
+        value: Mentor Booking Project
+      - key: Mailjet__SendEndpoint
+        value: https://api.mailjet.com/v3.1/send
+
+  # ==================== API GATEWAY ====================
+  - type: web
+    name: api-gateway
+    runtime: docker
+    plan: free
+    dockerfilePath: ./MBP.ApiGateway/MBP.ApiGateway.ApiService/Dockerfile
+    dockerContext: .
+    envVars:
+      - fromGroup: shared-config
+      - key: ReverseProxy__Clusters__auth-cluster__Destinations__destination1__Address
+        fromService:
+          name: auth-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ReverseProxy__Clusters__booking-cluster__Destinations__destination1__Address
+        fromService:
+          name: booking-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ReverseProxy__Clusters__meeting-cluster__Destinations__destination1__Address
+        fromService:
+          name: meeting-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ReverseProxy__Clusters__ai-cluster__Destinations__destination1__Address
+        fromService:
+          name: ai-service
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL

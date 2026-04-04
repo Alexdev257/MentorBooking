@@ -1,49 +1,35 @@
-﻿using AuthService.Application.CQRS.Query.Role;
+using AuthService.Application.CQRS.Query.Role;
 using AuthService.Application.DTOs.Response;
-using AuthService.Application.Interfaces.Repositories;
+using AuthService.Domain.Enum;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AuthService.Application.CQRS.Handler.Role
 {
     public class RoleGetAllQueryHandler : IRequestHandler<RoleGetAllQuery, RoleGetAllResponse>
     {
-        private readonly IAuthUnitOfWork _unitOfWork;
-        public RoleGetAllQueryHandler(IAuthUnitOfWork unitOfWork)
+        public Task<RoleGetAllResponse> Handle(RoleGetAllQuery request, CancellationToken cancellationToken)
         {
-            _unitOfWork = unitOfWork;
-        }
-        public async Task<RoleGetAllResponse> Handle(RoleGetAllQuery request, CancellationToken cancellationToken)
-        {
-            var roles = _unitOfWork.Roles.GetAllAsync().Where(r => !r.IsDeleted);
-            if(!roles.Any())
-            {
-                return new RoleGetAllResponse
+            var roles = Enum.GetValues(typeof(RoleNameEnum))
+                .Cast<RoleNameEnum>()
+                .Select(r => new RoleDTO
                 {
-                    IsSuccess = true,
-                    Message = "Role retrieve successfully",
-                    Data = new List<RoleDTO>()
-                };
-            }
-            var response = await roles.Select(r => new RoleDTO
-            {
-                Id = r.Id.ToString(),
-                Name = r.Name.ToString(),
-                Status = r.Status.ToString(),
-                CreatedAt = r.CreatedAt,
-            }).ToListAsync();
+                    Id = ((int)r).ToString(),
+                    Name = r.ToString(),
+                    Status = "Active",
+                    CreatedAt = null
+                })
+                .ToList();
 
-            return new RoleGetAllResponse
+            return Task.FromResult(new RoleGetAllResponse
             {
                 IsSuccess = true,
-                Message = "Role retrieve successfully",
-                Data = response,
-            };
+                Message = "Success",
+                Data = roles
+            });
         }
     }
 }

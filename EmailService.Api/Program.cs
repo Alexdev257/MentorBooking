@@ -2,6 +2,7 @@
 using EmailService.Infrastructure.Consumers;
 using EmailService.Infrastructure.Services;
 using MassTransit;
+using Shared.Infrastructure.Bus;
 
 namespace EmailService.Api;
 
@@ -11,22 +12,12 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
         builder.AddServiceDefaults();
-        builder.Services.AddScoped<EmailSender>();
-
-        builder.Services.AddMassTransit(x =>
+        builder.Services.AddHttpClient<EmailSender>((_, http) =>
         {
-            x.AddConsumer<SendOtpRegisterConsumer>();
-
-            x.UsingRabbitMq((context, cfg) =>
-            {
-                cfg.Host(builder.Configuration["RabbitMQ:Host"], "/", h => {
-                    h.Username(builder.Configuration["RabbitMQ:Username"]!);
-                    h.Password(builder.Configuration["RabbitMQ:Password"]!);
-                });
-
-                cfg.ConfigureEndpoints(context);
-            });
+            http.Timeout = TimeSpan.FromMinutes(2);
         });
+
+        builder.Services.AddMessageBus(builder.Configuration, typeof(SendOtpRegisterConsumer).Assembly);
 
         var app = builder.Build();
 

@@ -1,7 +1,7 @@
 ﻿using EmailService.Infrastructure.Services;
 using MassTransit;
 using MassTransit.Internals;
-using SharedContracts.Events;
+using Shared.Contracts.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,15 +1,15 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using SharedInfrastructure.Services;
-using SharedKernel.Domain;
+using Shared.Infrastructure.Services;
+using Shared.Kernel.Domain;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedInfrastructure.Persistence.Interceptors
+namespace Shared.Infrastructure.Persistence.Interceptors
 {
     public class AuditableEntityInterceptor : SaveChangesInterceptor
     {
@@ -40,16 +40,10 @@ namespace SharedInfrastructure.Persistence.Interceptors
                 if (entry.State == EntityState.Added)
                 {
                     entry.Entity.CreatedAt = DateTime.UtcNow;
-                    if (!Guid.TryParse(_currentUserService.UserId, out var uid))
-                    {
+                    if (!string.IsNullOrEmpty(_currentUserService.UserId) && Guid.TryParse(_currentUserService.UserId, out var uid))
                         entry.Entity.CreatedBy = uid;
-                    }
                     else
-                    {
-                        var defaultGuid = Guid.Empty;
                         entry.Entity.CreatedBy = null;
-                    }
-                    
                 }
 
                 if(entry.State == EntityState.Deleted)

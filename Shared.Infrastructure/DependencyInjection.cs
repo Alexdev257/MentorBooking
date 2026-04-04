@@ -1,22 +1,22 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SharedContracts.Interfaces;
-using SharedInfrastructure.Behaviors;
-using SharedInfrastructure.Caching;
-using SharedInfrastructure.Middleware;
-using SharedInfrastructure.Persistence.Interceptors;
-using SharedInfrastructure.Persistence.Repositories;
-using SharedInfrastructure.Services;
-using SharedKernel.Interfaces;
+using Shared.Contracts.Interfaces;
+using Shared.Infrastructure.Behaviors;
+using Shared.Infrastructure.Caching;
+using Shared.Infrastructure.Middleware;
+using Shared.Infrastructure.Persistence.Interceptors;
+using Shared.Infrastructure.Persistence.Repositories;
+using Shared.Infrastructure.Services;
+using Shared.Kernel.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SharedInfrastructure
+namespace Shared.Infrastructure
 {
     public static class DependencyInjection
     {
@@ -29,10 +29,15 @@ namespace SharedInfrastructure
             services.AddHttpContextAccessor();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<AuditableEntityInterceptor>();
-            services.AddStackExchangeRedisCache(options =>
+            var redisConnection = configuration.GetConnectionString("Redis");
+            if (!string.IsNullOrWhiteSpace(redisConnection))
             {
-                options.Configuration = configuration.GetConnectionString("Redis");
-            });
+                services.AddStackExchangeRedisCache(options => options.Configuration = redisConnection);
+            }
+            else
+            {
+                services.AddDistributedMemoryCache();
+            }
             services.AddScoped<ICacheService, RedisCacheService>();
             return services;
         }

@@ -1,4 +1,4 @@
-﻿using SharedContracts.Common.Wrappers;
+﻿using Shared.Contracts.Common.Wrappers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
